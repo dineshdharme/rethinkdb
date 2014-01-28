@@ -137,7 +137,7 @@ class Namespace(object):
             unicode("port"): self.port,
             unicode("primary_pinnings"): self.primary_pinnings,
             unicode("secondary_pinnings"): self.secondary_pinnings,
-            unicode("database"): self.database
+            unicode("database"): self.database_uuid
             }
 
     def __str__(self):
@@ -514,8 +514,14 @@ class ClusterAccess(object):
         namespace = self.find_namespace(namespace)
         ae_dict = { }
         for datacenter, count in ack_expectations.iteritems():
-            ae_dict[self.find_datacenter(datacenter).uuid] = count
-        namespace.ack_expectations.update(ae_dict)
+            dc = self.find_datacenter(datacenter)
+            ae_dict[dc.uuid] = { "expectation": count }
+            print "current AE", namespace.ack_expectations
+            print "dc uuid", dc.uuid
+            if dc.uuid in namespace.ack_expectations:
+                namespace.ack_expectations[dc.uuid].update({ "expectation": count })
+            else:
+                namespace.ack_expectations[dc.uuid] = { "expectation": count,  "hard_durability": True }
         self.do_query("POST", "/ajax/semilattice/%s_namespaces/%s/ack_expectations" % (namespace.protocol, namespace.uuid), ae_dict)
         self.update_cluster_data(10)
 
