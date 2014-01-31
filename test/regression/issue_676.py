@@ -39,7 +39,7 @@ with driver.Metacluster() as metacluster:
     workload_ports = workload_runner.MemcachedPorts(
         "localhost",
         processes[0].http_port,
-        ns.port + processes[0].port_offset)
+        processes[0].memcache_port(ns))
     workload_runner.run("memcached", opts["workload"], workload_ports, opts["timeout"])
     cluster.check()
 

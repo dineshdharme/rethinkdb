@@ -1,3 +1,5 @@
+TODO: rewrite
+
 Guide to the `rethinkdb/test/` directory
 ---------------------------------------
 

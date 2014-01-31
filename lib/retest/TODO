@@ -1,0 +1,106 @@
+$ ./stress  --help
+Usage:
+        ./stress [OPTIONS]
+
+Options:
+        -s, --server
+                Server to connect to, in the form [PROTOCOL,]HOSTSTRING. This option
+                can be specified more than once to distribute clients over several
+                servers. If no servers are specified, defaults to [sockmemcached,localhost:11211].
+        -c, --clients
+                Number of concurrent clients. Defaults to [64].
+        --client-suffix
+                Append a per-client id to key names.
+        --ignore-protocol-errors
+                Do not quit if the protocol throws errors.
+        -w, --workload
+                Target load to generate. Expects a value in format D/U/I/R/A/P/V/RR, where
+                        D - number of deletes
+                        U - number of updates
+                        I - number of inserts
+                        R - number of reads
+                        A - number of appends
+                        P - number of prepends
+                        V - number of verifications
+                        RR - number of range reads
+                Defaults to [1/4/8/64/0/0/0/0]
+        -k, --keys
+                Key distribution in DISTR format (see below). Defaults to [8-16].
+        -K, --keys-prefix
+                Prefix every key with the following string. Defaults to [].
+        -v, --values
+                Value distribution in DISTR format (see below). Maximum possible
+                value size is [10485760]. Defaults to [8-128].
+        -d, --duration
+                Duration of the run. Defaults to [10000000q].
+        -b, --batch-factor
+                A range in DISTR format for average number of reads
+                to perform in one shot. Defaults to [1-16].
+        -R, --range-size
+                A range in DISTR format for average number of values
+                to retrieve per range get. Defaults to [16-128].
+        -l, --latency-file
+                File name to output individual latency information (in us).
+                The information is not outputted if this argument is skipped.
+        -L, --worst-latency-file
+                File name to output worst latency each second.
+                The information is not outputted if this argument is skipped.
+        -q, --qps-file
+                File name to output QPS information. '-' for stdout.
+                The information is not outputted if this argument is skipped.
+        -o, --out-file
+                If present, dump all inserted keys to this file.
+        -i, --in-file
+                If present, populate initial keys from this file
+                and don't drop the database (for relevant protocols).
+        -f, --db-file
+                If present drop kv pairs into sqlite and verify correctness on read.
+        -r, --distr
+                A key access distrubution. Possible values: 'uniform' (default), and 'normal'.
+        -m, --mu
+                Control normal distribution. Percent of the database size within one standard
+                distribution (defaults to 1%).
+        -p, --pipeline
+                Maximum number of operations that may be queued to server (defaults to 1).
+
+Additional information:
+                DISTR format describes a range and can be specified in as NUM or MIN-MAX.
+
+                Possible protocols are [rethinkdbsockmemcached,sqlite]. Protocol
+                is optional; if not specified, will default to [sockmemcached].
+
+                For memcached and rethinkdb protocols the host argument should be in the form host:port.
+                Duration can be specified as a number of queries (e.g. 5000 or 5000q),
+                a number of rows inserted (e.g. 5000i), or a number of seconds (e.g. 5000s).
+Run the integration tests for rethinkdb
+Usage: ../scripts/run-tests.sh [..] [filter]
+   <filter>        Filter tests (default: 'default')
+   -l              List tests
+   -o <output_dir> Set output folder (default: test_results.XXXXX)
+   -h              This help
+   -v              More verbose
+   -j <tasks>      Run tests in parallel
+   -r <repeats>    Repeat each test
+   -d <run_dir>    Run the tests in a different folder (eg: /dev/shm)
+   -w <file>       Write report to file (- for stdout)
+   -b <build>      RethinkDB build directory (default: build/debug)
+   -u <url>        Post the test results to the url
+   -c              Disable color
+   -t <timeout>    Kill tests that last longer (default: 5m)
+   -F <filter>     Mark these tests as flaky (default: flaky)
+   -s <name> -- <command>  For internal use only
+Output Directory Format:
+   A folder is created for each test. Files in the folder contain the command
+   line for the test, the test result and the test output.
+Input Directory Format:
+    The input directory, test/full_tests, contains .test files that generate a
+    list of all the tests and .group files that contain test filters.
+Filter Syntax:
+   <test_name>   Select a specific test
+   <test_group>  Select all the tests of a group
+   <a> !<b>      Select all tests selected by a, except for those selected by b
+   <pattern>     Select all tests matching the pattern, in which * is a wildcard
+Examples:
+   ../scripts/run-tests.sh -l -v disabled           List the command line for all the disabled tests
+   ../scripts/run-tests.sh -j 12 -r 3 'interface*'  Run all interface tests three times, using 12 concurrent tasks
+   ../scripts/run-tests.sh -d /dev/shm              Run the default tests on a memory backed partition
