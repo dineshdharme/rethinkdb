@@ -1,6 +1,6 @@
 import logging, sys
 
-default = logging.getLogger('default')
+default = logging.getLogger()
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
-default.addHandler(ch)
+default.addHandler(handler)

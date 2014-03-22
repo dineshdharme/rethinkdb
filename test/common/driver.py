@@ -1,67 +1,83 @@
-# TODO: rename process to server
-# Copyright 2010-2013 RethinkDB, all rights reserved.
-import sys, os, time, socket, signal, subprocess, shutil, tempfile, random, re, logging
-from lib.resunder_client import block_path, unblock_path
-from lib.http_admin import HttpAdmin
-import lib.log
+# Copyright 2010-2012 RethinkDB, all rights reserved.
+import sys, os, time, socket, signal, subprocess, shutil, tempfile, random, re
 
-"""This is a module for starting groups of RethinkDB cluster nodes and
+"""`driver.py` is a module for starting groups of RethinkDB cluster nodes and
 connecting them to each other. It also supports netsplits.
 
-It is designed to use the RethinkDB command line interface, not to
+It does not support administering a cluster, either through the HTTP interface
+or using `rethinkdb admin`. It is meant to be used with other modules that
+administer the cluster which it starts.
+
+`driver.py` is designed to use the RethinkDB command line interface, not to
 test it; if you want to do strange things like tell RethinkDB to `--join` an
-invalid port, or delete the files out from under a running RethinkDB server,
-or so on, you should start a RethinkDB server manually using some other
+invalid port, or delete the files out from under a running RethinkDB process,
+or so on, you should start a RethinkDB process manually using some other
 module. """
 
-# def find_subpath(subpath):
-#     paths = [subpath, "../" + subpath, "../../" + subpath, "../../../" + subpath]
-#     if "RETHINKDB" in os.environ:
-#         paths = [os.path.join(os.environ["RETHINKDB"], subpath)]
-#     for path in paths:
-#         if os.path.exists(path):
-#             return path
-#     raise RuntimeError("Can't find path %s.  Tried these paths: %s" % (subpath, paths))
+def block_path(source_port, dest_port):
+    if not ("resunder" in subprocess.check_output(["ps", "-A"])):
+        print >> sys.stderr, '\nPlease start resunder process in test/common/resunder.py (as root)\n'
+        assert False
+    conn = socket.create_connection(("localhost", 46594))
+    conn.sendall("block %s %s\n" % (str(source_port), str(dest_port)))
+    # TODO: Wait for ack?
+    conn.close()
 
-# def find_rethinkdb_executable(mode = ""):
-#     if mode == "":
-#         build_dir = os.getenv('RETHINKDB_BUILD_DIR')
-#         if build_dir:
-#             return os.path.join(build_dir, 'rethinkdb')
-#         else:
-#             mode = 'debug'
-#     return find_subpath("build/%s/rethinkdb" % mode)
+def unblock_path(source_port, dest_port):
+    assert "resunder" in subprocess.check_output(["ps", "-A"])
+    conn = socket.create_connection(("localhost", 46594))
+    conn.sendall("unblock %s %s\n" % (str(source_port), str(dest_port)))
+    conn.close()
+
+def find_subpath(subpath):
+    paths = [subpath, "../" + subpath, "../../" + subpath, "../../../" + subpath]
+    if "RETHINKDB" in os.environ:
+        paths = [os.path.join(os.environ["RETHINKDB"], subpath)]
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    raise RuntimeError("Can't find path %s.  Tried these paths: %s" % (subpath, paths))
+
+def find_rethinkdb_executable(mode = ""):
+    if mode == "":
+        build_dir = os.getenv('RETHINKDB_BUILD_DIR')
+        if build_dir:
+            return os.path.join(build_dir, 'rethinkdb')
+        else:
+            mode = 'debug'
+    return find_subpath("build/%s/rethinkdb" % mode)
+
+def get_namespace_host(namespace_port, processes):
+    if namespace_port == 0:
+        return ("localhost", random.choice(processes).driver_port)
+    else:
+        return ("localhost", namespace_port + random.choice(processes).port_offset)
 
 class Metacluster(object):
     """A `Metacluster` is a group of clusters. It's responsible for maintaining
     `resunder` blocks between different clusters. It's also a context manager
-    that cleans up all the servers and can delete all the files. """
+    that cleans up all the processes and deletes all the files. """
 
-    def __init__(self, dbs_path=None, keep_files=False, log=None):
+    def __init__(self):
         self.clusters = set()
-        self.log = log or logging.getLogger("default")
-        if not dbs_path:
-            self.log.info("Creating temporary directory for databases")
-            self.dbs_path = tempfile.mkdtemp()
-            self.log.info("Created '%s'" % self.dbs_path)
-        else:
-            self.dbs_path = dbs_path
-        self.keep_files = keep_files
+        self.dbs_path = tempfile.mkdtemp()
+        self.files_counter = 0
         self.closed = False
+        try:
+            self.port_offset = int(os.environ["RETHINKDB_PORT_OFFSET"])
+        except KeyError:
+            self.port_offset = random.randint(0, 1800) * 10
 
     def close(self):
-        """Stop all servers and deletes all files. Also, makes the
+        """Kills all processes and deletes all files. Also, makes the
         `Metacluster` object invalid. Call `close()` xor `__exit__()`, not
         both, because `__exit__()` calls `close()`. """
-        self.log.info('Closing meta-cluster of %d clusters.' % len(self.clusters))
         assert not self.closed
         self.closed = True
         while self.clusters:
             iter(self.clusters).next().check_and_stop()
         self.clusters = None
-        if not self.keep_files:
-            self.log.info('Removing the parent database folder "%s"' % self.dbs_path)
-            shutil.rmtree(self.dbs_path)
+        shutil.rmtree(self.dbs_path)
 
     def __enter__(self):
         return self
@@ -69,50 +85,48 @@ class Metacluster(object):
     def __exit__(self, exc, etype, tb):
         self.close()
 
-    # TODO: move this to the Server class
-    def change_server_cluster(self, server, dest_cluster):
-        """Moves a `Server`s from one `Cluster` to another. To split
-        a cluster, create an empty cluster and use this method to move
-        some servers from the original one to the empty one; to join two
-        clusters, move all the servers from one into the other. Note that
+    def move_processes(self, source, dest, processes):
+        """Moves a group of `Process`es from one `Cluster` to another. To split
+        a cluster, create an empty cluster and use `move_processes()` to move
+        some processes from the original one to the empty one; to join two
+        clusters, move all the processes from one into the other. Note that
         this does not tell the servers to connect to each other; unless the
         incoming servers were connected to the existing servers before, or
         unless you start a new server in the destination cluster to bring the
-        two groups of servers together, they may remain unconnected. """
-        assert isinstance(server, Server)
-        assert server.cluster.metacluster is self
-        assert isinstance(dest_cluster, Cluster)
-        assert dest_cluster.metacluster is self
-        # TODO: catch exception in add_server and remove_server, not here
+        two groups of processes together, they may remain unconnected. """
+        assert isinstance(source, Cluster)
+        assert source.metacluster is self
+        assert isinstance(dest, Cluster)
+        assert dest.metacluster is self
+        for process in processes:
+            assert isinstance(process, Process)
+            assert process.cluster is source
+            process.cluster = None
+            source.processes.remove(process)
         try:
-            # TODO: make sure add_server and remove_server change server.cluster and cluster.servers
-            server.cluster.remove_server(server)
-            dest_cluster.add_server(server)
+            for process in processes:
+                source._block_process(process)
+            for process in processes:
+                dest._unblock_process(process)
         except Exception:
-            process.close()
+            for process in processes:
+                process.close()
             raise
-
-    def new_client_port(self):
-        # TODO
-        return random.randint(32768, 61000)
+        for process in processes:
+            process.cluster = dest
+            dest.processes.add(process)
 
 class Cluster(object):
     """A `Cluster` represents a group of `Processes` that are all connected to
     each other (ideally, anyway; see the note in `move_processes`). """
 
-    def __init__(self, name=None, metacluster=None, dbs_path=None, log=None):
-        if metacluster:
-            assert isinstance(metacluster, Metacluster)
-            assert not metacluster.closed
-            self.metacluster = metacluster
-        else:
-            self.metacluster = MetaCluster(dbs_path=dbs_path, log=log)
-        self.log = log or self.metacluster.log
-        self.dbs_path = dbs_path or self.metacluster.dbs_path
+    def __init__(self, metacluster):
+        assert isinstance(metacluster, Metacluster)
+        assert not metacluster.closed
+
+        self.metacluster = metacluster
         self.metacluster.clusters.add(self)
-        self.servers = set()
-        self.name = name or metacluster.new_cluster_name()
-        self.log.info('Created cluster "%s"' % self.name)
+        self.processes = set()
 
     def check(self):
         """Throws an exception if any of the processes in the cluster has
@@ -124,7 +138,6 @@ class Cluster(object):
         """First checks that each process in the cluster is still running, then
         stops them by sending SIGINT. Throws an exception if any exit with a
         nonzero exit code. Also makes the cluster object invalid """
-        self.log.info('Stopping cluster %s' % self.name)
         try:
             while self.processes:
                 iter(self.processes).next().check_and_stop()
@@ -135,31 +148,21 @@ class Cluster(object):
             self.metacluster.clusters.remove(self)
             self.metacluster = None
 
-    def remove_server(self, quitter):
-        assert quitter in self.servers
-        self.log.info('Moving ')
-        try:
-            self.servers -= set([quitter])
-            quitter.cluster = None
-            for server in self.servers:
-                block_path(server.cluster_port,        quitter.local_cluster_port)
-                block_path(quitter.local_cluster_port, server.cluster_port)
-                block_path(server.local_cluster_port,  quitter.cluster_port)
-                block_path(quitter.cluster_port,       server.local_cluster_port)
-        except:
-            quitter.stop()
-            raise
+    def _block_process(self, process):
+        assert process not in self.processes
+        for other_process in self.processes:
+            block_path(process.cluster_port, other_process.local_cluster_port)
+            block_path(other_process.local_cluster_port, process.cluster_port)
+            block_path(process.local_cluster_port, other_process.cluster_port)
+            block_path(other_process.cluster_port, process.local_cluster_port)
 
-    def add_server(self, process):
+    def _unblock_process(self, process):
         assert process not in self.processes
         for other_process in self.processes:
             unblock_path(process.cluster_port, other_process.local_cluster_port)
             unblock_path(other_process.local_cluster_port, process.cluster_port)
             unblock_path(process.local_cluster_port, other_process.cluster_port)
             unblock_path(other_process.cluster_port, process.local_cluster_port)
-
-    def get_host(self):
-        return ("localhost", random.choice(self.processes).driver_port)
 
 class Files(object):
     """A `Files` object is a RethinkDB data directory. Each `Process` needs a
@@ -206,7 +209,7 @@ class _Process(object):
         assert isinstance(cluster, Cluster)
         assert cluster.metacluster is not None
         assert all(hasattr(self, x) for x in
-                   "local_cluster_port logfile_path".split())
+                   "local_cluster_port port_offset logfile_path".split())
 
         if executable_path is None:
             executable_path = find_rethinkdb_executable()
@@ -351,11 +354,14 @@ class Process(_Process):
 
         self.files = files
         self.logfile_path = os.path.join(files.db_path, "log_file")
-        self.local_cluster_port = cluster.metacluster.new_client_port()
+
+        self.port_offset = cluster.metacluster.port_offset + self.files.id_number
+        self.local_cluster_port = 29015 + self.port_offset
 
         options = ["serve",
-                   "--directory", self.files.db_path,
-                   "--client-port", str(self.local_cluster_port),
+                   "--directory",  self.files.db_path,
+                   "--port-offset",  str(self.port_offset),
+                   "--client-port",  str(self.local_cluster_port),
                    "--cluster-port", "0",
                    "--driver-port", "0",
                    "--http-port", "0"
@@ -379,10 +385,12 @@ class ProxyProcess(_Process):
 
         self.logfile_path = logfile_path
 
-        self.local_cluster_port = cluster.metacluster.new_client_port()
+        self.port_offset = cluster.metacluster.port_offset + cluster.metacluster.files_counter
+        self.local_cluster_port = 28015 + self.port_offset
 
         options = ["proxy",
                    "--log-file",  self.logfile_path,
+                   "--port-offset",  str(self.port_offset),
                    "--client-port",  str(self.local_cluster_port)
                    ] + extra_options
 

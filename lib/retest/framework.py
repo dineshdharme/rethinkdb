@@ -1,3 +1,6 @@
+# TODO : test that depend on each other
+# TODO : parameterised tests
+
 import multiprocessing
 import threading
 import signal
@@ -517,3 +520,6 @@ class TestTree(Test):
         for __, ___ in self:
             count += 1
         return count
+
+    def has_test(self, name):
+        return self.tests.has_key(name)
