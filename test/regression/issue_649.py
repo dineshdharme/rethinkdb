@@ -24,12 +24,12 @@ with driver.Metacluster() as metacluster:
     dc = http.add_datacenter()
     for machine_id in http.machines:
         http.move_server_to_datacenter(machine_id, dc)
-    ns = http.add_namespace(protocol = "memcached", primary = dc)
+    ns = http.add_table(protocol = "memcached", primary = dc)
     time.sleep(10)
     cluster.check()
 
     print "Splitting into two shards..."
-    http.add_namespace_shard(ns, "t")
+    http.add_table_shard(ns, "t")
     time.sleep(10)
     cluster.check()
 

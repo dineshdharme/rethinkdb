@@ -35,7 +35,7 @@ def parse_mode_flags(parsed_opts):
 
 def prepare_table_for_workload(parsed_opts, http, **kwargs):
     db = http.add_database(name = "test")
-    return http.add_namespace(protocol = parsed_opts["protocol"], database = db, **kwargs)
+    return http.add_table(protocol = parsed_opts["protocol"], database = db, **kwargs)
 
 def get_workload_ports(parsed_opts, namespace, processes):
     for process in processes:

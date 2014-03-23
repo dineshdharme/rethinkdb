@@ -37,7 +37,7 @@ with driver.Metacluster() as metacluster:
     dc = http.add_datacenter()
     http.move_server_to_datacenter(process1.files.machine_name, dc)
     http.move_server_to_datacenter(process2.files.machine_name, dc)
-    ns = http.add_namespace(protocol = "memcached", primary = dc,
+    ns = http.add_table(protocol = "memcached", primary = dc,
         affinities = {dc: 1}, ack_expectations = {dc: 2})
     http.do_query("POST", "/ajax/semilattice/memcached_namespaces/%s/primary_pinnings" % ns.uuid,
         {"[\"\",null]": http.find_machine(process1.files.machine_name).uuid})
