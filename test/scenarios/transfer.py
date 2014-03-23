@@ -23,7 +23,7 @@ with driver.Metacluster() as metacluster:
         executable_path = executable_path, command_prefix = command_prefix, extra_options = serve_options)
     process1.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http1 = http_admin.ClusterAccess([("localhost", process1.http_port)])
     dc = http1.add_datacenter()
     http1.move_server_to_datacenter(files1.machine_name, dc)
@@ -41,7 +41,7 @@ with driver.Metacluster() as metacluster:
     process2.wait_until_started_up()
     http1.update_cluster_data(3)
     http1.move_server_to_datacenter(files2.machine_name, dc)
-    http1.set_namespace_affinities(ns, {dc: 1})
+    http1.set_table_affinities(ns, {dc: 1})
     http1.check_no_issues()
 
     print "Waiting for backfill..."
@@ -53,11 +53,11 @@ with driver.Metacluster() as metacluster:
     process1.check_and_stop()
     http2 = http_admin.ClusterAccess([("localhost", process2.http_port)])
     http2.declare_machine_dead(files1.machine_name)
-    http2.set_namespace_affinities(ns.name, {dc.name: 0})
+    http2.set_table_affinities(ns.name, {dc.name: 0})
     http2.check_no_issues()
     http2.wait_until_blueprint_satisfied(ns.name)
 
-    workload_ports_2 = scenario_common.get_workload_ports(opts, http2.find_namespace(ns.name), [process2])
+    workload_ports_2 = scenario_common.get_workload_ports(opts, http2.find_table(ns.name), [process2])
     workload_runner.run("UNUSED", opts["workload2"], workload_ports_2, opts["timeout"])
 
     cluster.check_and_stop()

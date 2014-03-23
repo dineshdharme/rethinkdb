@@ -21,7 +21,7 @@ with driver.Metacluster() as metacluster:
         for i in xrange(2)]
     for process in processes:
         process.wait_until_started_up()
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", p.http_port) for p in processes])
     dc = http.add_datacenter()
     for machine_id in http.machines:
@@ -33,7 +33,7 @@ with driver.Metacluster() as metacluster:
     distribution = http.get_distribution(ns)
 
     print "Inserting a bunch."
-    host, port = driver.get_namespace_host(ns.port, processes)
+    host, port = driver.get_table_host("UNUSED", processes)
     with MemcacheConnection(host, port) as mc:
         for i in range(10000):
             if (i + 1) % 100 == 0:

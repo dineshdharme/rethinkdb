@@ -26,7 +26,7 @@ with driver.Metacluster() as metacluster:
     process1.wait_until_started_up()
     process2.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", p.http_port) for p in [process1, process2]])
     dc1 = http.add_datacenter()
     http.move_server_to_datacenter(process1.files.machine_name, dc1)

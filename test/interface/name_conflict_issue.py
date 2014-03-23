@@ -21,7 +21,7 @@ with driver.Metacluster() as metacluster:
     cluster.check()
     access = http_admin.ClusterAccess([("localhost", process.http_port)])
     assert access.get_issues() == []
-    print "Creating two namespaces with the same name..."
+    print "Creating two tables with the same name..."
     datacenter = access.add_datacenter()
     database = access.add_database(name="Germany")
     access.move_server_to_datacenter(next(iter(access.machines)), datacenter)

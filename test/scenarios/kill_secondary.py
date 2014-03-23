@@ -24,7 +24,7 @@ with driver.Metacluster() as metacluster:
         executable_path = executable_path, command_prefix = command_prefix, extra_options = serve_options)
     secondary.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", primary.http_port)])
     primary_dc = http.add_datacenter()
     http.move_server_to_datacenter(primary.files.machine_name, primary_dc)
@@ -44,7 +44,7 @@ with driver.Metacluster() as metacluster:
         secondary.close()
         time.sleep(30)   # Wait for the other node to notice it's dead
         http.declare_machine_dead(secondary.files.machine_name)
-        http.set_namespace_affinities(ns, {secondary_dc: 0})
+        http.set_table_affinities(ns, {secondary_dc: 0})
         http.wait_until_blueprint_satisfied(ns)
         cluster.check()
         http.check_no_issues()

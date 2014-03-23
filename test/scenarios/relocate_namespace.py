@@ -24,7 +24,7 @@ with driver.Metacluster() as metacluster:
     for process in processes:
         process.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", p.http_port) for p in processes])
     primary_dc = http.add_datacenter()
     secondary_dc = http.add_datacenter()
@@ -41,7 +41,7 @@ with driver.Metacluster() as metacluster:
         workload.run_before()
         cluster.check()
         http.check_no_issues()
-        http.move_namespace_to_datacenter(ns, secondary_dc)
+        http.move_table_to_datacenter(ns, secondary_dc)
         http.wait_until_blueprint_satisfied(ns)
         cluster.check()
         http.check_no_issues()

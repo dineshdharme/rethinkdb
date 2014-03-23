@@ -44,7 +44,7 @@ with driver.Metacluster() as metacluster:
     access2.rename(access2.find_datacenter(dc.uuid), "Fizz")
 
     access1.rename(table, "other_name")
-    access2.rename(access2.find_namespace(table.uuid), "another_name")
+    access2.rename(access2.find_table(table.uuid), "another_name")
 
     print "Joining cluster, then waiting 10s..."
     metacluster.move_processes(cluster2, cluster1, [proc2])

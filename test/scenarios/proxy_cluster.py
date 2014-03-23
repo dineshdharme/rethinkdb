@@ -25,7 +25,7 @@ with driver.Metacluster() as metacluster:
     for process in processes:
         process.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", proxy_process.http_port)])
     dc = http.add_datacenter()
     for machine_id in http.machines:

@@ -23,14 +23,14 @@ with driver.Metacluster() as metacluster:
         for i in xrange(2)]
     for process in processes:
         process.wait_until_started_up()
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", p.http_port) for p in processes])
     dc = http.add_datacenter()
     for machine_id in http.machines:
         http.move_server_to_datacenter(machine_id, dc)
     ns = http.add_table(protocol = "memcached", primary = dc)
     time.sleep(10)
-    host, port = driver.get_namespace_host(ns.port, processes)
+    host, port = driver.get_table_host(ns.port, processes)
 
     print "Performing test queries..."
     with MemcacheConnection(host, port) as mc:
@@ -43,7 +43,7 @@ with driver.Metacluster() as metacluster:
     print "Done with test queries."
 
     print "Adding a replica."
-    http.set_namespace_affinities(ns, {dc : 1})
+    http.set_table_affinities(ns, {dc : 1})
 
     time.sleep(1)
 

@@ -25,7 +25,7 @@ with driver.Metacluster() as metacluster:
     database_machine.wait_until_started_up
     access_machine.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", database_machine.http_port)])
     database_dc = http.add_datacenter()
     http.move_server_to_datacenter(database_machine.files.machine_name, database_dc)

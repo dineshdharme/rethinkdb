@@ -50,7 +50,7 @@ with driver.Metacluster() as metacluster:
     for process in processes:
         process.wait_until_started_up()
 
-    print "Creating namespace..."
+    print "Creating table..."
     http = http_admin.ClusterAccess([("localhost", p.http_port) for p in processes])
     primary_dc = http.add_datacenter()
     secondary_dc = http.add_datacenter()
@@ -62,7 +62,7 @@ with driver.Metacluster() as metacluster:
         affinities = {primary_dc.uuid: 1, secondary_dc.uuid: 1})
     shard_boundaries = set(random.sample(candidate_shard_boundaries, opts["sequence"].initial))
     print "Split points are:", list(shard_boundaries)
-    http.change_namespace_shards(ns, adds = list(shard_boundaries))
+    http.change_table_shards(ns, adds = list(shard_boundaries))
     http.wait_until_blueprint_satisfied(ns)
     cluster.check()
 
@@ -76,7 +76,7 @@ with driver.Metacluster() as metacluster:
             adds = set(random.sample(candidate_shard_boundaries - shard_boundaries, num_adds))
             removes = set(random.sample(shard_boundaries, num_removes))
             print "Splitting at", list(adds), "and merging at", list(removes)
-            http.change_namespace_shards(ns, adds = list(adds), removes = list(removes))
+            http.change_table_shards(ns, adds = list(adds), removes = list(removes))
             shard_boundaries = (shard_boundaries - removes) | adds
             http.wait_until_blueprint_satisfied(ns, timeout = 3600)
             cluster.check()
