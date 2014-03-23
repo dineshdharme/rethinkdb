@@ -1,7 +1,5 @@
 workloads = {
     'append-stress': "$RETHINKDB/test/memcached_workloads/append_stress.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME",
-    'fuzz': "$RETHINKDB/test/memcached_workloads/fuzz.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME --duration 300",
-    'incr-decr': "$RETHINKDB/test/memcached_workloads/incr_decr.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME",
     'many-keys': "$RETHINKDB/test/memcached_workloads/many_keys.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME",
     'bogus-commands': "$RETHINKDB/test/memcached_workloads/memcached_suite.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME bogus-commands.t",
     'cas-2': "$RETHINKDB/test/memcached_workloads/memcached_suite.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME cas.t",
