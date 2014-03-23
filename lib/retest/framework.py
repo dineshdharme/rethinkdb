@@ -12,6 +12,7 @@ import os
 import traceback
 import subprocess
 import time
+import traceback
 
 parser = ArgumentParser(description='Run RethinkDB tests')
 parser.add_argument('-j', '--jobs', type=int, default=1,
@@ -22,6 +23,8 @@ parser.add_argument('-r', '--repeat', type=int, default=1,
                     help='The number of times to repeat each test')
 parser.add_argument('-k', '--continue', action='store_true', dest='kontinue',
                     help='Continue repeating even if a test fails')
+parser.add_argument('-a', '--abort-fast', action='store_true', dest='abort_fast',
+                    help='Abort the tests when a test fails')
 parser.add_argument('-v', '--verbose', action='store_true')
 parser.add_argument('-t', '--timeout', type=int, default=600,
                     help='Timeout in seconds for each test')
@@ -49,7 +52,8 @@ def run(all_tests, args):
             output_dir=args.output_dir,
             verbose=args.verbose,
             repeat=args.repeat,
-            kontinue=args.kontinue)
+            kontinue=args.kontinue,
+            abort_fast=args.abort_fast)
         testrunner.run()
 
 def configure(reqs):
@@ -72,7 +76,7 @@ class TestRunner(object):
     TIMED_OUT = 'TIMED_OUT'
     STARTED = 'STARTED'
     
-    def __init__(self, tests, conf, tasks=1, timeout=600, output_dir=None, verbose=False, repeat=1, kontinue=False):
+    def __init__(self, tests, conf, tasks=1, timeout=600, output_dir=None, verbose=False, repeat=1, kontinue=False, abort_fast = False):
         self.tests = tests
         self.semaphore = multiprocessing.Semaphore(tasks)
         self.processes = []
@@ -82,6 +86,8 @@ class TestRunner(object):
         self.repeat = repeat
         self.kontinue = kontinue
         self.failed_set = set()
+        self.aborting = False
+        self.abort_fast = abort_fast
 
         if output_dir:
             self.dir = output_dir
@@ -103,63 +109,89 @@ class TestRunner(object):
         self.view = TermView(self) if sys.stdout.isatty() and not verbose else TextView(self)
         
     def run(self):
+        tests_count = len(self.tests)
+        tests_launched = 0
         try:
-            test_count = len(self.tests)
-            print "Running %d tests (output_dir: %s)" % (test_count, self.dir)
+            print "Running %d tests (output_dir: %s)" % (tests_count, self.dir)
 
             for i in range(0, self.repeat):
                 for name, test in self.tests:
+                    if self.aborting:
+                        break
                     self.semaphore.acquire()
+                    if self.aborting:
+                        self.semaphore.release()
+                        break
                     if self.kontinue or name not in self.failed_set:
                         id = (name, i)
                         dir = join(self.dir, name if self.repeat == 1 else name + '.' + str(i+1)) 
                         process = TestProcess(self, id, test, dir)
                         with self.running as running:
                             running[id] = process
+                        tests_launched = tests_launched + 1
                         process.start()
                     else:
                         self.semaphore.release()
 
-            # loop through the remaining TestProcesses and wait for them to finish
-            while True:
+            self.wait_for_running_tests()
+
+        except:
+            self.aborting = True
+            (exc_type, exc_value, exc_trace) = sys.exc_info()
+            if not exc_type == KeyboardInterrupt:
+                print
+                print '\n'.join(traceback.format_exception(exc_type, exc_value, exc_trace))
+            print >>sys.stderr, "\nWaiting for tests to finish..."
+            try:
+                self.wait_for_running_tests()
+            except:
+                print "Killing remaining tasks..."
                 with self.running as running:
-                    if not running:
-                        break
-                    id, process = running.iteritems().next()
-                process.join()
-                with self.running as running:
-                    try: 
-                        del(running[id])
-                    except KeyError:
-                        pass
-                    else:
-                        process.write_fail_message("Test failed to report success or"
-                                                   " failure status") 
-                        self.tell(self.FAILED, id)
-        except KeyboardInterrupt:
-            print >>sys.stderr, "Aborting tests"
-        finally:
-            with self.running as running:
-                for id, process in running.iteritems():
-                    process.terminate()
-            self.view.close()
-        if len(self.failed_set):
-            print "%d of %d tests failed" % (len(self.failed_set), test_count)
+                    for id, process in running.iteritems():
+                        process.terminate()
+        self.view.close()
+        if tests_launched != tests_count:
+            if len(self.failed_set):
+                print "%d tests failed" % (len(self.failed_set),)
+            print "%d tests skipped" % (tests_count - tests_launched,)
+        elif len(self.failed_set):
+            print "%d of %d tests failed" % (len(self.failed_set), tests_count)
         else:
             print "All tests passed successfully"
         print "Saved test results to %s" % (self.dir,)
 
+    def wait_for_running_tests(self):
+        # loop through the remaining TestProcesses and wait for them to finish
+        while True:
+            with self.running as running:
+                if not running:
+                    break
+                id, process = running.iteritems().next()
+            process.join()
+            with self.running as running:
+                try: 
+                    del(running[id])
+                except KeyError:
+                    pass
+                else:
+                    process.write_fail_message("Test failed to report success or"
+                                               " failure status") 
+                    self.tell(self.FAILED, id)
+        
     def tell(self, status, id, testprocess):
         name = id[0]
+        args = {}
+        if status == 'FAILED':
+            if not self.aborting:
+                args = dict(error = testprocess.tail_error())
+            if self.abort_fast:
+                self.aborting = True
         if status != 'STARTED': 
             with self.running as running:
                 del(running[id])
             if status != 'SUCCESS':
                 self.failed_set.add(name)
             self.semaphore.release()
-        args = {}
-        if status == 'FAILED':
-             args = dict(error = testprocess.tail_error())
         self.view.tell(status, name, **args)
 
     def count_running(self):
