@@ -279,9 +279,7 @@ class TermView(TextView):
 
     def format_running(self):
         ret = self.running_list[0]
-        for name in self.running_list[1:3]:
-            ret += ", " + name
-        if len(self.running_list) > 3:
+        if len(self.running_list) > 1:
             ret += ", ..."
         return ret
             
