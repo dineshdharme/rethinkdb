@@ -16,7 +16,7 @@ def child(opts, log_path, load, save):
         print "Loading from %r..." % load
         with open(load) as f:
             clone, deleted = pickle.load(f)
-    print "Starting test against server at %s:%d..." % opts["address"]
+    print "Starting test against server at %s..." % opts["address"]
     with memcached_workload_common.make_memcache_connection(opts) as mc:
         serial_mix.test(opts, mc, clone, deleted)
     if save is not None:
