@@ -2,9 +2,10 @@
 # Copyright 2010-2012 RethinkDB, all rights reserved.
 import sys, os, time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, 'common')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir, 'drivers', 'python')))
 import driver, http_admin, scenario_common
-from memcached_workload_common import MemcacheConnection
 from vcoptparse import *
+import rethinkdb as r
 
 op = OptParser()
 scenario_common.prepare_option_parser_mode_flags(op)
@@ -30,15 +31,20 @@ with driver.Metacluster() as metacluster:
         http.move_server_to_datacenter(machine_id, dc)
     ns = http.add_table("UNUSED", primary = dc)
     time.sleep(10)
-    host, port = driver.get_table_host(ns.port, processes)
+    host, port = driver.get_table_host("UNUSED", processes)
 
     print "Performing test queries..."
-    with MemcacheConnection(host, port) as mc:
+    with r.connect(host, port) as conn:
+        r.db_create('test').run(conn);
+        r.table_create('distribution').run(conn)
+        batch = []
         for i in range(10000):
-            if (i + 1) % 100 == 0:
+            batch.append({'id': str(i) * 10, 'val': str(i)*20})
+            if (i + 1) % 100 == 0: 
+                r.table('distribution').insert(batch).run(conn)
+                batch = []
                 print i + 1,
                 sys.stdout.flush()
-            mc.set(str(i) * 10, str(i)*20)
         print
     print "Done with test queries."
 

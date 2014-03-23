@@ -1,6 +1,7 @@
 # TODO : test that depend on each other
 # TODO : parameterised tests
 # TODO : add flags for run elsewhere (eg /dev/shm), specify build dir, html report, flaky tests, groups
+# TODO : specify dependency on python driver
 
 import multiprocessing
 import threading

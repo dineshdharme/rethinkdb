@@ -27,7 +27,7 @@ with driver.Metacluster() as metacluster:
     access.move_server_to_datacenter(next(iter(access.machines)), datacenter)
     database = access.add_database("test")
     namespace1 = access.add_table(primary = datacenter, database = database, name = "John_Jacob_Jingleheimer_Schmidt")
-    namespace2 = access.add_table(primary = datacenter, database = database, name = "John_Jacob_Jingleheimer_Schmidt".upper())
+    namespace2 = access.add_table(primary = datacenter, database = database, name = "John_Jacob_Jingleheimer_Schmidt")
     time.sleep(1)
     cluster.check()
     print "Checking that there is an issue about this..."
