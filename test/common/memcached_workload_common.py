@@ -5,7 +5,7 @@ import contextlib
 import rdb_workload_common
 
 @contextlib.contextmanager
-def make_memcache_connections(opts):
+def make_memcache_connection(opts):
     with rdb_workload_common.make_table_and_connection(opts) as (table, conn):
         yield MemcacheRdbShim(table, conn)
 
