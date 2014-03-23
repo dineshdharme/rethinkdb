@@ -7,12 +7,14 @@ import signal
 from argparse import ArgumentParser
 import sys
 import tempfile
-from os.path import abspath, join, dirname, pardir
+from os.path import abspath, join, dirname, pardir, getmtime
 import os
 import traceback
 import subprocess
 import time
 import traceback
+
+default_test_results_dir = join(dirname(__file__), pardir, pardir, 'build', 'test_results')
 
 parser = ArgumentParser(description='Run RethinkDB tests')
 parser.add_argument('-j', '--jobs', type=int, default=1,
@@ -25,9 +27,12 @@ parser.add_argument('-k', '--continue', action='store_true', dest='kontinue',
                     help='Continue repeating even if a test fails')
 parser.add_argument('-a', '--abort-fast', action='store_true', dest='abort_fast',
                     help='Abort the tests when a test fails')
-parser.add_argument('-v', '--verbose', action='store_true')
+parser.add_argument('-v', '--verbose', action='store_true',
+                    help='Be more verbose when running tests. Also works with -l and -L')
 parser.add_argument('-t', '--timeout', type=int, default=600,
                     help='Timeout in seconds for each test')
+parser.add_argument('-L', '--load', nargs='?', const=True, default=False, metavar='DIR',
+                    help='Load logs from a previous test')
 parser.add_argument('filter', nargs='*',
                     help='The name of the tests to run, or a group'
                     'or tests or their negation with !')
@@ -35,19 +40,16 @@ parser.add_argument('filter', nargs='*',
 def run(all_tests, args):
     args = parser.parse_args(args)
     filter = TestFilter.parse(args.filter)
+    if args.load:
+        old_tests_mode(all_tests, args.load, filter, args.verbose, args.mode)
+        return
     tests = all_tests.filter(filter)
     reqs = tests.requirements()
     conf = configure(reqs)
     tests = tests.configure(conf)
     filter.check_use()
     if args.mode == 'list':
-        for name, test in tests:
-            if not args.verbose:
-                print name
-            else:
-                print name + ':'
-                for line in str(test).split('\n'):
-                    print "  " + line
+        list_tests_mode(tests, verbose)
         return
     else:
         testrunner = TestRunner(
@@ -60,6 +62,36 @@ def run(all_tests, args):
             kontinue=args.kontinue,
             abort_fast=args.abort_fast)
         testrunner.run()
+
+# Thie mode just lists the tests
+def list_tests_mode(tests, verbose):
+    for name, test in tests:
+        if verbose:
+            print name + ':'
+            for line in str(test).split('\n'):
+                print "  " + line
+        else:
+            print name
+
+# This mode loads previously run tests
+def old_tests_mode(all_tests, load, filter, verbose, mode):
+    if isinstance(load, "".__class__):
+        load_path = load
+    else:
+        all_dirs = [join(default_test_results_dir, d) for d in os.listdir(default_test_results_dir)]
+        load_path = max([d for d in all_dirs if os.path.isdir(d)], key=getmtime)
+        print "Loading tests from", load_path
+    tests = load_test_results_as_tests(load_path).filter(filter)
+    filter.check_use()
+    if mode == 'list':
+        list_tests_mode(tests, verbose)
+        return
+    view = TextView()
+    for name, test in tests:
+        passed = test.passed()
+        if verbose and not passed:
+            test.dump_log()
+        view.tell('SUCCESS' if passed else 'FAILED', name)
 
 def configure(reqs):
     # TODO
@@ -102,7 +134,7 @@ class TestRunner(object):
                 print >> sys.stderr, "Could not create output directory (" + output_dir + "):", e
                 sys.exit(1)
         else:
-            tr_dir = join(conf['SRC_ROOT'],'build/test_results/') 
+            tr_dir = default_test_results_dir
             try:
                 os.makedirs(tr_dir)
             except OSError:
@@ -111,7 +143,7 @@ class TestRunner(object):
             self.dir = tempfile.mkdtemp('', timestamp, tr_dir)
         
         self.running = Locked({})
-        self.view = TermView(self) if sys.stdout.isatty() and not verbose else TextView(self)
+        self.view = TermView() if sys.stdout.isatty() and not verbose else TextView()
         
     def run(self):
         tests_count = len(self.tests)
@@ -208,8 +240,7 @@ class TextView(object):
     red = "\033[31;1m"
     nocolor = "\033[0m"
         
-    def __init__(self, runner):
-        self.runner = runner
+    def __init__(self):
         self.use_color = sys.stdout.isatty()
 
     def tell(self, event, name, **args):
@@ -217,6 +248,8 @@ class TextView(object):
             print self.format_event(event, name, **args)
 
     def format_event(self, str, name, error=None):
+        if str == 'LOG':
+            return name
         short = dict(
             FAILED = (self.red, "FAIL"),
             SUCCESS = (self.green, "OK  "),
@@ -235,8 +268,8 @@ class TextView(object):
         pass
 
 class TermView(TextView):
-    def __init__(self, runner):
-        TextView.__init__(self, runner)
+    def __init__(self):
+        TextView.__init__(self)
         self.running_list = []
         self.buffer = ''
         self.read_pipe, self.write_pipe = multiprocessing.Pipe(False)
@@ -325,6 +358,9 @@ class TestProcess(object):
         try:
             self.runner.tell(TestRunner.STARTED, self.id, self)
             os.mkdir(self.dir)
+            with open(join(self.dir, "description"), 'w') as file:
+                file.write(str(self.test))
+
             self.supervisor = threading.Thread(target=self.supervise,
                                                name="supervisor:"+self.name)
             self.supervisor.daemon = True
@@ -351,6 +387,8 @@ class TestProcess(object):
 
     def write_fail_message(self, message):
         with open(join(self.dir, "stderr"), 'a') as file:
+            file.write(message)
+        with open(join(self.dir, "fail_message"), 'a') as file:
             file.write(message)
 
     def tail_error(self):
@@ -385,6 +423,10 @@ class TestProcess(object):
                 self.write_fail_message("Test did not fail, but"
                                         " failed to report its success")
                 status = TestRunner.FAILED
+            else:
+                if status != TestRunner.SUCCESS:
+                    with open(join(self.dir, "fail_message"), 'a') as file:
+                        file.write('Failed')
             self.runner.tell(status, self.id, self)
                 
     def join(self):
@@ -569,3 +611,46 @@ class TestTree(Test):
 
     def has_test(self, name):
         return self.tests.has_key(name)
+
+def load_test_results_as_tests(path):
+    tests = TestTree()
+    for dir in os.listdir(path):
+        full_dir = join(path, dir)
+        if not os.path.isdir(full_dir):
+            continue
+        names = list(reversed(dir.split('.')))
+        parent = tests
+        while parent.has_test(names[0]):
+            parent = parent[names[0]]
+            names.pop()
+        test = OldTest(full_dir)
+        for name in names[1:]:
+            test = TestTree({name: test})
+        parent[names[0]] = test
+    return tests
+
+class OldTest(Test):
+    def __init__(self, dir, **kwargs):
+        Test.__init__(self, **kwargs)
+        self.dir = dir
+
+    def __str__(self):
+        return self.read_file('description', 'unknown test')
+
+    def read_file(self, name, default=None):
+        try:
+            with open(join(self.dir, name)) as file:
+                return file.read()
+        except Exception as e:
+            return default
+
+    def passed(self):
+        return not os.path.exists(join(self.dir, "fail_message"))
+
+    def dump_log(self):
+        with file(join(self.dir, "stdout")) as f:
+            for line in f:
+                print line
+        with file(join(self.dir, "stderr")) as f:
+            for line in f:
+                print line
