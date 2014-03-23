@@ -18,24 +18,24 @@ default_test_results_dir = join(dirname(__file__), pardir, pardir, 'build', 'tes
 
 parser = ArgumentParser(description='Run RethinkDB tests')
 parser.add_argument('-j', '--jobs', type=int, default=1,
-                    help='The number of tests to run simultaneously')
+                    help='The number of tests to run simultaneously (Default: 1)')
 parser.add_argument('-l', '--list', dest='mode', action='store_const', const='list')
 parser.add_argument('-o', '--output-dir')
 parser.add_argument('-r', '--repeat', type=int, default=1,
-                    help='The number of times to repeat each test')
+                    help='The number of times to repeat each test (Default: 1)')
 parser.add_argument('-k', '--continue', action='store_true', dest='kontinue',
-                    help='Continue repeating even if a test fails')
+                    help='Continue repeating even if a test fails (Default: no)')
 parser.add_argument('-a', '--abort-fast', action='store_true', dest='abort_fast',
-                    help='Abort the tests when a test fails')
+                    help='Abort the tests when a test fails (Default: no)')
 parser.add_argument('-v', '--verbose', action='store_true',
-                    help='Be more verbose when running tests. Also works with -l and -L')
+                    help='Be more verbose when running tests. Also works with -l and -L (Default: no)')
 parser.add_argument('-t', '--timeout', type=int, default=600,
-                    help='Timeout in seconds for each test')
+                    help='Timeout in seconds for each test (Default: 600)')
 parser.add_argument('-L', '--load', nargs='?', const=True, default=False, metavar='DIR',
-                    help='Load logs from a previous test')
+                    help='Load logs from a previous test (Default: no)')
 parser.add_argument('filter', nargs='*',
                     help='The name of the tests to run, or a group'
-                    'or tests or their negation with !')
+                    ' of tests, or their negation with ! (Default: run all tests)')
 
 def run(all_tests, args):
     args = parser.parse_args(args)
@@ -63,7 +63,7 @@ def run(all_tests, args):
             abort_fast=args.abort_fast)
         testrunner.run()
 
-# Thie mode just lists the tests
+# This mode just lists the tests
 def list_tests_mode(tests, verbose):
     for name, test in tests:
         if verbose:
@@ -89,7 +89,7 @@ def old_tests_mode(all_tests, load, filter, verbose, mode):
     view = TextView()
     for name, test in tests:
         passed = test.passed()
-        if verbose and not passed:
+        if verbose:
             test.dump_log()
         view.tell('SUCCESS' if passed else 'FAILED', name)
 
@@ -620,13 +620,13 @@ def load_test_results_as_tests(path):
             continue
         names = list(reversed(dir.split('.')))
         parent = tests
-        while parent.has_test(names[0]):
-            parent = parent[names[0]]
+        while parent.has_test(names[-1]):
+            parent = parent[names[-1]]
             names.pop()
         test = OldTest(full_dir)
-        for name in names[1:]:
+        for name in names[:-1]:
             test = TestTree({name: test})
-        parent[names[0]] = test
+        parent[names[-1]] = test
     return tests
 
 class OldTest(Test):
@@ -650,7 +650,9 @@ class OldTest(Test):
     def dump_log(self):
         with file(join(self.dir, "stdout")) as f:
             for line in f:
-                print line
+                print line,
         with file(join(self.dir, "stderr")) as f:
             for line in f:
-                print line
+                print line,
+        print
+
