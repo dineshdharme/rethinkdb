@@ -31,7 +31,7 @@ with driver.Metacluster() as metacluster:
     http1.wait_until_blueprint_satisfied(ns)
 
     workload_ports_1 = scenario_common.get_workload_ports(opts, ns, [process1])
-    workload_runner.run(opts["protocol"], opts["workload1"], workload_ports_1, opts["timeout"])
+    workload_runner.run("UNUSED", opts["workload1"], workload_ports_1, opts["timeout"])
 
     print "Bringing up new server..."
     files2 = driver.Files(metacluster, db_path = "db-second", log_path = "create-output-second",
@@ -58,6 +58,6 @@ with driver.Metacluster() as metacluster:
     http2.wait_until_blueprint_satisfied(ns.name)
 
     workload_ports_2 = scenario_common.get_workload_ports(opts, http2.find_namespace(ns.name), [process2])
-    workload_runner.run(opts["protocol"], opts["workload2"], workload_ports_2, opts["timeout"])
+    workload_runner.run("UNUSED", opts["workload2"], workload_ports_2, opts["timeout"])
 
     cluster.check_and_stop()

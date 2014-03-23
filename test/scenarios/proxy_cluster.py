@@ -34,7 +34,7 @@ with driver.Metacluster() as metacluster:
     http.wait_until_blueprint_satisfied(ns)
 
     workload_ports = scenario_common.get_workload_ports(opts, ns, [proxy_process])
-    workload_runner.run(opts["protocol"], opts["workload"], workload_ports, opts["timeout"])
+    workload_runner.run("UNUSED", opts["workload"], workload_ports, opts["timeout"])
 
     cluster.check_and_stop()
 

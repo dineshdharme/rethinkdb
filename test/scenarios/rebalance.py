@@ -67,7 +67,7 @@ with driver.Metacluster() as metacluster:
     cluster.check()
 
     workload_ports = scenario_common.get_workload_ports(opts, ns, processes)
-    with workload_runner.SplitOrContinuousWorkload(opts, opts["protocol"], workload_ports) as workload:
+    with workload_runner.SplitOrContinuousWorkload(opts, "UNUSED", workload_ports) as workload:
         workload.run_before()
         cluster.check()
         for i, (num_adds, num_removes) in enumerate(opts["sequence"].steps):

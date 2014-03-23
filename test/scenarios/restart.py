@@ -28,7 +28,7 @@ with driver.Metacluster() as metacluster:
     ns = scenario_common.prepare_table_for_workload(opts, http, primary = dc)
     http.wait_until_blueprint_satisfied(ns)
     workload_ports = scenario_common.get_workload_ports(opts, ns, [process])
-    workload_runner.run(opts["protocol"], opts["workload1"], workload_ports, opts["timeout"])
+    workload_runner.run("UNUSED", opts["workload1"], workload_ports, opts["timeout"])
     print "Restarting server..."
     process.check_and_stop()
     process2 = driver.Process(cluster, files,
@@ -39,6 +39,6 @@ with driver.Metacluster() as metacluster:
     # sleep 5 seconds
     time.sleep(5)
     # http.wait_until_blueprint_satisfied(ns)
-    workload_runner.run(opts["protocol"], opts["workload2"], workload_ports, opts["timeout"])
+    workload_runner.run("UNUSED", opts["workload2"], workload_ports, opts["timeout"])
     print "Shutting down..."
     cluster.check_and_stop()
