@@ -232,7 +232,7 @@ class TextView(object):
 class TermView(TextView):
     def __init__(self, runner):
         TextView.__init__(self, runner)
-        self.running_count = 0
+        self.running_list = []
         self.buffer = ''
         self.read_pipe, self.write_pipe = multiprocessing.Pipe(False)
         self.thread = threading.Thread(target=self.run, name='TermView')
@@ -255,10 +255,10 @@ class TermView(TextView):
         
     def thread_tell(self, event, name, **kwargs):
         if event == 'STARTED':
-            self.running_count += 1
+            self.running_list += [name]
             self.update_status()
         else:
-            self.running_count -= 1
+            self.running_list.remove(name)
             if event == 'SUCCESS':
                 color = self.green
             else:
@@ -274,9 +274,17 @@ class TermView(TextView):
         self.buffer += "\033[0E\033[K"
 
     def show_status(self):
-        if self.running_count:
-            self.buffer += '[%d tests running]' % (self.running_count,)
+        if self.running_list:
+            self.buffer += '[%d tests running: %s]' % (len(self.running_list), self.format_running())
 
+    def format_running(self):
+        ret = self.running_list[0]
+        for name in self.running_list[1:3]:
+            ret += ", " + name
+        if len(self.running_list) > 3:
+            ret += ", ..."
+        return ret
+            
     def show(self, line):
         self.clear_status()
         self.buffer += line + "\n"
