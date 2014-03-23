@@ -38,15 +38,15 @@ with driver.Metacluster() as metacluster:
     http.check_no_issues()
 
     workload_ports = scenario_common.get_workload_ports(opts, ns, [process1, process2])
-    with workload_runner.SplitOrContinuousWorkload(opts, opts["protocol"], workload_ports) as workload:
+    with workload_runner.SplitOrContinuousWorkload(opts, "UNUSED", workload_ports) as workload:
         workload.run_before()
         cluster.check()
         http.check_no_issues()
         workload.check()
         print "Changing the primary..."
-        http.set_namespace_affinities(ns, {dc1: 1, dc2: 1})
-        http.move_namespace_to_datacenter(ns, dc2)
-        http.set_namespace_affinities(ns, {dc1: 1, dc2: 0})
+        http.set_table_affinities(ns, {dc1: 1, dc2: 1})
+        http.move_table_to_datacenter(ns, dc2)
+        http.set_table_affinities(ns, {dc1: 1, dc2: 0})
         http.wait_until_blueprint_satisfied(ns)
         cluster.check()
         http.check_no_issues()

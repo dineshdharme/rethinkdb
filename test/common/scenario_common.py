@@ -9,7 +9,6 @@ def prepare_option_parser_mode_flags(opt_parser):
     opt_parser["wrapper"] = StringFlag("--wrapper", None)
     opt_parser["mode"] = StringFlag("--mode", "")
     opt_parser["serve-flags"] = StringFlag("--serve-flags", "")
-    opt_parser["protocol"] = ChoiceFlag("--protocol", ["rdb", "memcached"], "memcached")
 
 def parse_mode_flags(parsed_opts):
     mode = parsed_opts["mode"]
@@ -44,6 +43,6 @@ def get_workload_ports(parsed_opts, namespace, processes):
     return workload_runner.RDBPorts(
         host = "localhost",
         http_port = process.http_port,
-        rdb_port = 28015 + process.port_offset,
+        rdb_port = process.driver_port,
         table_name = namespace.name,
         db_name = "test")

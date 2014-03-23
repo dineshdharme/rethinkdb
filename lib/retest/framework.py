@@ -187,7 +187,7 @@ class TestRunner(object):
         name = id[0]
         args = {}
         if status == 'FAILED':
-            if not self.aborting:
+            if not self.aborting and not self.verbose:
                 args = dict(error = testprocess.tail_error())
             if self.abort_fast:
                 self.aborting = True

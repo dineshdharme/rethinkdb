@@ -2,18 +2,6 @@
 import subprocess, os, time, string, signal
 from vcoptparse import *
 
-# TODO: Merge this file into `scenario_common.py`?
-
-class MemcachedPorts(object):
-    def __init__(self, host, http_port, memcached_port):
-        self.host = host
-        self.http_port = http_port
-        self.memcached_port = memcached_port
-    def add_to_environ(self, env):
-        env["HOST"] = self.host
-        env["HTTP_PORT"] = str(self.http_port)
-        env["PORT"] = str(self.memcached_port)
-
 class RDBPorts(object):
     def __init__(self, host, http_port, rdb_port, db_name, table_name):
         self.host = host
@@ -28,16 +16,12 @@ class RDBPorts(object):
         env["DB_NAME"] = self.db_name
         env["TABLE_NAME"] = self.table_name
 
-def run(protocol, command_line, ports, timeout):
-    assert protocol in ["rdb", "memcached"]
-    if protocol == "memcached":
-        assert isinstance(ports, MemcachedPorts)
-    else:
-        assert isinstance(ports, RDBPorts)
+def run(__unused, command_line, ports, timeout):
+    assert isinstance(ports, RDBPorts)
 
     start_time = time.time()
     end_time = start_time + timeout
-    print "Running %s workload %r..." % (protocol, command_line)
+    print "Running workload %r..." % (command_line,)
 
     # Set up environment
     new_environ = os.environ.copy()
@@ -65,10 +49,9 @@ def run(protocol, command_line, ports, timeout):
     raise RuntimeError("workload timed out before completion")
 
 class ContinuousWorkload(object):
-    def __init__(self, command_line, protocol, ports):
+    def __init__(self, command_line, __unused, ports):
         assert isinstance(ports, RDBPorts)
         self.command_line = command_line
-        self.protocol = protocol
         self.ports = ports
         self.running = False
 
@@ -77,7 +60,7 @@ class ContinuousWorkload(object):
 
     def start(self):
         assert not self.running
-        print "Starting %s workload %r..." % (self.protocol, self.command_line)
+        print "Starting workload %r..." % (self.command_line,)
 
         # Set up environment
         new_environ = os.environ.copy()
@@ -143,12 +126,13 @@ def prepare_option_parser_for_split_or_continuous_workload(op, allow_between = F
     op["timeout-after"] = IntFlag("--timeout-after", 600)
 
 class SplitOrContinuousWorkload(object):
-    def __init__(self, opts, protocol, ports):
-        self.opts, self.protocol, self.ports = opts, protocol, ports
+    def __init__(self, opts, __unused, ports):
+        self.opts = opts
+        self.ports = ports
     def __enter__(self):
         self.continuous_workloads = []
         for cl in self.opts["workload-during"]:
-            cwl = ContinuousWorkload(cl, self.protocol, self.ports)
+            cwl = ContinuousWorkload(cl, "UNUSED", self.ports)
             cwl.__enter__()
             self.continuous_workloads.append(cwl)
         return self
@@ -162,7 +146,7 @@ class SplitOrContinuousWorkload(object):
                 self.check()
     def run_before(self):
         if self.opts["workload-before"] is not None:
-            run(self.protocol, self.opts["workload-before"], self.ports, self.opts["timeout-before"])
+            run("UNUSED", self.opts["workload-before"], self.ports, self.opts["timeout-before"])
         if self.opts["workload-during"]:
             for cwl in self.continuous_workloads:
                 cwl.start()
@@ -174,7 +158,7 @@ class SplitOrContinuousWorkload(object):
         self.check()
         assert "workload-between" in self.opts, "pass allow_between=True to prepare_option_parser_for_split_or_continuous_workload()"
         if self.opts["workload-between"] is not None:
-            run(self.protocol, self.opts["workload-between"], self.ports, self.opts["timeout-between"])
+            run("UNUSED", self.opts["workload-between"], self.ports, self.opts["timeout-between"])
         if self.opts["workload-during"]:
             self._spin_continuous_workloads(self.opts["extra-between"])
     def run_after(self):
@@ -183,7 +167,7 @@ class SplitOrContinuousWorkload(object):
             for cwl in self.continuous_workloads:
                 cwl.stop()
         if self.opts["workload-after"] is not None:
-            run(self.protocol, self.opts["workload-after"], self.ports, self.opts["timeout-after"])
+            run("UNUSED", self.opts["workload-after"], self.ports, self.opts["timeout-after"])
     def __exit__(self, exc = None, ty = None, tb = None):
         if self.opts["workload-during"] is not None:
             for cwl in self.continuous_workloads:
