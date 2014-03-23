@@ -35,22 +35,15 @@ def parse_mode_flags(parsed_opts):
 
 def prepare_table_for_workload(parsed_opts, http, **kwargs):
     db = http.add_database(name = "test")
-    return http.add_table(protocol = parsed_opts["protocol"], database = db, **kwargs)
+    return http.add_table(database = db, **kwargs)
 
 def get_workload_ports(parsed_opts, namespace, processes):
     for process in processes:
         assert isinstance(process, (driver.Process, driver.ProxyProcess))
     process = random.choice(processes)
-    assert namespace.protocol == parsed_opts["protocol"]
-    if parsed_opts["protocol"] == "memcached":
-        return workload_runner.MemcachedPorts(
-            host = "localhost",
-            http_port = process.http_port,
-            memcached_port = namespace.port + process.port_offset)
-    else:
-        return workload_runner.RDBPorts(
-            host = "localhost",
-            http_port = process.http_port,
-            rdb_port = 28015 + process.port_offset,
-            table_name = namespace.name,
-            db_name = "test")
+    return workload_runner.RDBPorts(
+        host = "localhost",
+        http_port = process.http_port,
+        rdb_port = 28015 + process.port_offset,
+        table_name = namespace.name,
+        db_name = "test")

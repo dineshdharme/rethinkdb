@@ -414,7 +414,6 @@ class ClusterAccess(object):
             database_uuid = self.find_database(database).uuid
         data_to_post = {
             "name": name,
-            "port": port,
             "primary_uuid": primary,
             "replica_affinities": aff_dict,
             "ack_expectations": ack_dict,
@@ -432,7 +431,7 @@ class ClusterAccess(object):
         assert len(info) == 1
         uuid, json_data = next(info.iteritems())
         table = Table(uuid, json_data)
-        getattr(self, "rdb_namespaces")[table.uuid] = table
+        self.tables[table.uuid] = table
         self.update_cluster_data(10)
         if check:
             self._wait_for_table(table, 90)

@@ -26,3 +26,6 @@ class ShellCommandTest(Test):
         env = environ.copy()
         env.update(self.env)
         check_call(self.command, shell=True, env=env)
+
+    def __str__(self):
+        return self.command

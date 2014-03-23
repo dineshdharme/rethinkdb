@@ -66,11 +66,7 @@ def run(protocol, command_line, ports, timeout):
 
 class ContinuousWorkload(object):
     def __init__(self, command_line, protocol, ports):
-        assert protocol in ["rdb", "memcached"]
-        if protocol == "memcached":
-            assert isinstance(ports, MemcachedPorts)
-        else:
-            assert isinstance(ports, RDBPorts)
+        assert isinstance(ports, RDBPorts)
         self.command_line = command_line
         self.protocol = protocol
         self.ports = ports

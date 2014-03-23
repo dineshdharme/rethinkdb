@@ -41,8 +41,13 @@ def run(all_tests, args):
     tests = tests.configure(conf)
     filter.check_use()
     if args.mode == 'list':
-        for name, __ in tests:
-            print name
+        for name, test in tests:
+            if not args.verbose:
+                print name
+            else:
+                print name + ':'
+                for line in str(test).split('\n'):
+                    print "  " + line
         return
     else:
         testrunner = TestRunner(
