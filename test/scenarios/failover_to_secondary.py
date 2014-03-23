@@ -38,7 +38,7 @@ with driver.Metacluster() as metacluster:
     http.check_no_issues()
 
     workload_ports = scenario_common.get_workload_ports(opts, ns, [secondary])
-    with workload_runner.SplitOrContinuousWorkload(opts, opts["protocol"], workload_ports) as workload:
+    with workload_runner.SplitOrContinuousWorkload(opts, "UNUSED", workload_ports) as workload:
         workload.run_before()
         cluster.check()
         http.check_no_issues()
