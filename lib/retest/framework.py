@@ -1,5 +1,6 @@
 # TODO : test that depend on each other
 # TODO : parameterised tests
+# TODO : add flags for run elsewhere (eg /dev/shm), specify build dir, html report, flaky tests, groups
 
 import multiprocessing
 import threading
@@ -33,6 +34,8 @@ parser.add_argument('-t', '--timeout', type=int, default=600,
                     help='Timeout in seconds for each test (Default: 600)')
 parser.add_argument('-L', '--load', nargs='?', const=True, default=False, metavar='DIR',
                     help='Load logs from a previous test (Default: no)')
+parser.add_argument('-F', '--only-failed', action='store_true', dest='only_failed',
+                    help='Only load failed tests')
 parser.add_argument('filter', nargs='*',
                     help='The name of the tests to run, or a group'
                     ' of tests, or their negation with ! (Default: run all tests)')
@@ -41,7 +44,7 @@ def run(all_tests, args):
     args = parser.parse_args(args)
     filter = TestFilter.parse(args.filter)
     if args.load:
-        old_tests_mode(all_tests, args.load, filter, args.verbose, args.mode)
+        old_tests_mode(all_tests, args.load, filter, args.verbose, args.mode, args.only_failed)
         return
     tests = all_tests.filter(filter)
     reqs = tests.requirements()
@@ -49,7 +52,7 @@ def run(all_tests, args):
     tests = tests.configure(conf)
     filter.check_use()
     if args.mode == 'list':
-        list_tests_mode(tests, verbose)
+        list_tests_mode(tests, args.verbose)
         return
     else:
         testrunner = TestRunner(
@@ -74,7 +77,7 @@ def list_tests_mode(tests, verbose):
             print name
 
 # This mode loads previously run tests
-def old_tests_mode(all_tests, load, filter, verbose, mode):
+def old_tests_mode(all_tests, load, filter, verbose, mode, only_failed):
     if isinstance(load, "".__class__):
         load_path = load
     else:
@@ -83,6 +86,8 @@ def old_tests_mode(all_tests, load, filter, verbose, mode):
         print "Loading tests from", load_path
     tests = load_test_results_as_tests(load_path).filter(filter)
     filter.check_use()
+    if only_failed:
+        tests = tests.filter(PredicateFilter(lambda test: not test.passed()))
     if mode == 'list':
         list_tests_mode(tests, verbose)
         return
@@ -147,11 +152,13 @@ class TestRunner(object):
         
     def run(self):
         tests_count = len(self.tests)
-        tests_launched = 0
+        tests_launched = set()
         try:
             print "Running %d tests (output_dir: %s)" % (tests_count, self.dir)
 
             for i in range(0, self.repeat):
+                if len(self.failed_set) == tests_count:
+                    break
                 for name, test in self.tests:
                     if self.aborting:
                         break
@@ -165,7 +172,7 @@ class TestRunner(object):
                         process = TestProcess(self, id, test, dir)
                         with self.running as running:
                             running[id] = process
-                        tests_launched = tests_launched + 1
+                        tests_launched.add(name)
                         process.start()
                     else:
                         self.semaphore.release()
@@ -187,10 +194,10 @@ class TestRunner(object):
                     for id, process in running.iteritems():
                         process.terminate()
         self.view.close()
-        if tests_launched != tests_count:
+        if len(tests_launched) != tests_count:
             if len(self.failed_set):
                 print "%d tests failed" % (len(self.failed_set),)
-            print "%d tests skipped" % (tests_count - tests_launched,)
+            print "%d tests skipped" % (tests_count - len(tests_launched),)
         elif len(self.failed_set):
             print "%d of %d tests failed" % (len(self.failed_set), tests_count)
         else:
@@ -490,7 +497,7 @@ class TestFilter(object):
         self.default = type
         self.tree = {}
 
-    def match(self):
+    def match(self, test=None):
         self.was_matched = True
         return self.default == self.INCLUDE
 
@@ -516,7 +523,22 @@ class TestFilter(object):
     def all_same(self):
         self.was_matched = True
         return not self.tree
-            
+
+class PredicateFilter(object):
+    def __init__(self, predicate):
+        self.predicate = predicate
+    
+    def all_same(self):
+        return False
+
+    def match(self, test=None):
+        if test:
+            return self.predicate(test)
+        return True
+
+    def zoom(self, name):
+        return self
+
 class Test(object):
     def __init__(self, timeout=None):
         self._timeout = timeout
@@ -526,7 +548,7 @@ class Test(object):
                         (type(self).__name__,))
 
     def filter(self, filter):
-        if filter.match():
+        if filter.match(self):
             return self
         else:
             return None
