@@ -15,6 +15,7 @@ import traceback
 import subprocess
 import time
 import traceback
+import shutil
 
 default_test_results_dir = join(dirname(__file__), pardir, pardir, 'build', 'test_results')
 
@@ -22,7 +23,10 @@ parser = ArgumentParser(description='Run RethinkDB tests')
 parser.add_argument('-j', '--jobs', type=int, default=1,
                     help='The number of tests to run simultaneously (Default: 1)')
 parser.add_argument('-l', '--list', dest='mode', action='store_const', const='list')
-parser.add_argument('-o', '--output-dir')
+parser.add_argument('-o', '--output-dir',
+                    help='Directory where the tests results and logs will be written (Default: %s/*)' % default_test_results_dir)
+parser.add_argument('-d', '--run-dir',
+                    help="Directory where the tests will be run. Use this option to run the tests on another partition or on /dev/shm (Default: same as -o)")
 parser.add_argument('-r', '--repeat', type=int, default=1,
                     help='The number of times to repeat each test (Default: 1)')
 parser.add_argument('-k', '--continue', action='store_true', dest='kontinue',
@@ -61,6 +65,7 @@ def run(all_tests, args):
             tasks=args.jobs,
             timeout=args.timeout,
             output_dir=args.output_dir,
+            run_dir=args.run_dir,
             verbose=args.verbose,
             repeat=args.repeat,
             kontinue=args.kontinue,
@@ -119,7 +124,7 @@ class TestRunner(object):
     TIMED_OUT = 'TIMED_OUT'
     STARTED = 'STARTED'
     
-    def __init__(self, tests, conf, tasks=1, timeout=600, output_dir=None, verbose=False, repeat=1, kontinue=False, abort_fast = False):
+    def __init__(self, tests, conf, tasks=1, timeout=600, output_dir=None, verbose=False, repeat=1, kontinue=False, abort_fast = False, run_dir=None):
         self.tests = tests
         self.semaphore = multiprocessing.Semaphore(tasks)
         self.processes = []
@@ -132,6 +137,8 @@ class TestRunner(object):
         self.aborting = False
         self.abort_fast = abort_fast
 
+        timestamp = time.strftime('%Y-%m-%dT%H:%M:%S.')
+        
         if output_dir:
             self.dir = output_dir
             try:
@@ -145,9 +152,14 @@ class TestRunner(object):
                 os.makedirs(tr_dir)
             except OSError:
                 pass
-            timestamp = time.strftime('%Y-%m-%dT%H:%M:%S.')
             self.dir = tempfile.mkdtemp('', timestamp, tr_dir)
-        
+
+        if run_dir:
+            self.run_dir = tempfile.mkdtemp('', timestamp, run_dir)
+        else:
+            self.run_dir = None
+
+            
         self.running = Locked({})
         self.view = TermView() if sys.stdout.isatty() and not verbose else TextView()
         
@@ -169,8 +181,10 @@ class TestRunner(object):
                         break
                     if self.kontinue or name not in self.failed_set:
                         id = (name, i)
-                        dir = join(self.dir, name if self.repeat == 1 else name + '.' + str(i+1)) 
-                        process = TestProcess(self, id, test, dir)
+                        subdir = name if self.repeat == 1 else name + '.' + str(i+1)
+                        dir = join(self.dir, subdir)
+                        run_dir = join(self.run_dir, subdir) if self.run_dir else None
+                        process = TestProcess(self, id, test, dir, run_dir)
                         with self.running as running:
                             running[id] = process
                         tests_launched.add(name)
@@ -352,7 +366,7 @@ class Locked(object):
         self.lock.release()
             
 class TestProcess(object):
-    def __init__(self, runner, id, test, dir):
+    def __init__(self, runner, id, test, dir, run_dir):
         self.runner = runner
         self.id = id
         self.name = id[0]
@@ -360,12 +374,15 @@ class TestProcess(object):
         self.timeout = test.timeout() or runner.timeout
         self.supervisor = None
         self.process = None
-        self.dir = dir
+        self.dir = abspath(dir)
+        self.run_dir = abspath(run_dir) if run_dir else None
 
     def start(self):
         try:
             self.runner.tell(TestRunner.STARTED, self.id, self)
             os.mkdir(self.dir)
+            if self.run_dir:
+                os.mkdir(self.run_dir)
             with open(join(self.dir, "description"), 'w') as file:
                 file.write(str(self.test))
 
@@ -380,18 +397,22 @@ class TestProcess(object):
         sys.stdin.close()
         redirect_fd_to_file(1, join(self.dir, "stdout"), tee=self.runner.verbose)
         redirect_fd_to_file(2, join(self.dir, "stderr"), tee=self.runner.verbose)
-        os.chdir(self.dir)
+        os.chdir(self.run_dir or self.dir)
         with Timeout(self.timeout):
             try:
                 self.test.run()
             except TimeoutException:
                 write_pipe.send(TestRunner.TIMED_OUT)
-            except Exception as e:
-                # sys.stderr.write(traceback.format_exc() + '\n')
-                print >>sys.stderr, e
+            except:
+                sys.stderr.write(traceback.format_exc() + '\n')
                 write_pipe.send(TestRunner.FAILED)
             else:
                 write_pipe.send(TestRunner.SUCCESS)
+            finally:
+                if self.run_dir:
+                    for file in os.listdir(self.run_dir):
+                        shutil.move(join(self.run_dir, file), join(self.dir, file))
+                    os.rmdir(self.run_dir)
 
     def write_fail_message(self, message):
         with open(join(self.dir, "stderr"), 'a') as file:
