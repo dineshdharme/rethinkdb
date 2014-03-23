@@ -422,7 +422,10 @@ class TestFilter(object):
     def parse(self, args):
         if not args:
             return TestFilter(self.INCLUDE)
-        filter = TestFilter()
+        if args[0][0] == '!':
+            filter = TestFilter(self.INCLUDE)
+        else:
+            filter = TestFilter()
         for arg in args:
             if arg[0] == '!':
                 arg = arg[1:]
