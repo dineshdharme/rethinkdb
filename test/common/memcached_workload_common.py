@@ -15,19 +15,33 @@ class MemcacheRdbShim(object):
         self.conn = conn
 
     def get(self, key):
-        response = table.get(key).run(conn)
+        response = self.table.get(key).run(self.conn)
         if response:
             return response['val']
 
     def set(self, key, val):
-        response = table.insert({
+        response = self.table.insert({
             'id': key,
             'val': val
             },
             upsert=True
-            ).run(conn)
+            ).run(self.conn)
 
+        error = response.get('first_error')
+        if error:
+            raise Exception(error)
+        
         return response['inserted'] | response['replaced']
 
+    def delete(self, key):
+        response = self.table.get(key).delete().run(self.conn)
+
+        error = response.get('first_error')
+        if error:
+            raise Exception(error)
+        
+        return response['deleted']
+
+        
 def option_parser_for_memcache():
     return rdb_workload_common.option_parser_for_connect()

@@ -130,7 +130,7 @@ def test(opts, mc, clone, deleted):
 
 def option_parser_for_serial_mix():
     op = memcached_workload_common.option_parser_for_memcache()
-    op["keysize"] = IntFlag("--keysize", 250)
+    op["keysize"] = IntFlag("--keysize", 127)
     op["valuesize"] = IntFlag("--valuesize", 10000)
     op["thorough"] = BoolFlag("--thorough")
     def int_or_forever_parser(string):
