@@ -68,5 +68,3 @@ static_cluster.pipeline
 static_cluster.proxy-cluster
 static_cluster.python
 static_cluster.rget
-static_cluster.rget-huge
-static_cluster.unappend-unprepend
