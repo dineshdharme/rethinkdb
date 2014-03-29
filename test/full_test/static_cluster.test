@@ -7,8 +7,7 @@ workloads = {
     'rget-huge': "$RETHINKDB/test/memcached_workloads/rget_huge.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME",
     'serial-mix': "$RETHINKDB/test/memcached_workloads/serial_mix.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME",
     'unappend-unprepend': "$RETHINKDB/test/memcached_workloads/unappend_unprepend.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME",
-    'python': "$RETHINKDB/test/rdb_workloads/test.py",
-    'javascript': "node $RETHINKDB/test/rdb_workloads/test.js $HOST $PORT"
+    'python': "$RETHINKDB/test/rdb_workloads/test.py"
     }
 
 for wname, workload in workloads.items():

@@ -1,5 +1,5 @@
 # Copyright 2010-2012 RethinkDB, all rights reserved.
-import subprocess, os, time, string, signal
+import subprocess, os, time, string, signal, sys
 from vcoptparse import *
 
 class RDBPorts(object):
@@ -39,14 +39,16 @@ def run(__unused, command_line, ports, timeout):
                 return
             else:
                 print "Failed (%d seconds)" % (time.time() - start_time)
-                raise RuntimeError("workload '%s' failed with error code %d" % (command_line, result))
+                sys.stderr.write("workload '%s' failed with error code %d\n" % (command_line, result))
+                exit(1)
         print "Timed out (%d seconds)" % (time.time() - start_time)
     finally:
         try:
             os.killpg(proc.pid, signal.SIGTERM)
         except OSError:
             pass
-    raise RuntimeError("workload timed out before completion")
+    sys.stderr.write("Workload `%s' exceeded time out of %d" % (command_line, timeout))
+    exit(1)
 
 class ContinuousWorkload(object):
     def __init__(self, command_line, __unused, ports):

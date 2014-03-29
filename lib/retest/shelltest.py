@@ -1,6 +1,7 @@
 from os.path import abspath, join
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 from os import environ
+from sys import stderr
 
 from retest.framework import Test
 

@@ -110,7 +110,7 @@ def old_tests_mode(all_tests, load, filter, verbose, mode, only_failed, tree, ex
         view.tell('SUCCESS' if passed else 'FAILED', name)
         if tree:
             for name in test.list_files():
-                if tree: 
+                if tree:
                     print "  " + name
         if examine:
             for glob in examine:
@@ -130,14 +130,14 @@ def redirect_fd_to_file(fd, file, tee=False):
         tee = subprocess.Popen(["tee", file], stdin=subprocess.PIPE)
         f = tee.stdin
     os.dup2(f.fileno(), fd)
-    
+
 
 class TestRunner(object):
     SUCCESS = 'SUCCESS'
     FAILED = 'FAILED'
     TIMED_OUT = 'TIMED_OUT'
     STARTED = 'STARTED'
-    
+
     def __init__(self, tests, conf, tasks=1, timeout=600, output_dir=None, verbose=False, repeat=1, kontinue=False, abort_fast = False, run_dir=None):
         self.tests = tests
         self.semaphore = multiprocessing.Semaphore(tasks)
@@ -152,7 +152,7 @@ class TestRunner(object):
         self.abort_fast = abort_fast
 
         timestamp = time.strftime('%Y-%m-%dT%H:%M:%S.')
-        
+
         if output_dir:
             self.dir = output_dir
             try:
@@ -173,10 +173,10 @@ class TestRunner(object):
         else:
             self.run_dir = None
 
-            
+
         self.running = Locked({})
         self.view = TermView() if sys.stdout.isatty() and not verbose else TextView()
-        
+
     def run(self):
         tests_count = len(self.tests)
         tests_launched = set()
@@ -242,15 +242,15 @@ class TestRunner(object):
                 id, process = running.iteritems().next()
             process.join()
             with self.running as running:
-                try: 
+                try:
                     del(running[id])
                 except KeyError:
                     pass
                 else:
                     process.write_fail_message("Test failed to report success or"
-                                               " failure status") 
+                                               " failure status")
                     self.tell(self.FAILED, id)
-        
+
     def tell(self, status, id, testprocess):
         name = id[0]
         args = {}
@@ -259,7 +259,7 @@ class TestRunner(object):
                 args = dict(error = testprocess.tail_error())
             if self.abort_fast:
                 self.aborting = True
-        if status != 'STARTED': 
+        if status != 'STARTED':
             with self.running as running:
                 del(running[id])
             if status != 'SUCCESS':
@@ -275,7 +275,7 @@ class TextView(object):
     green = "\033[32;1m"
     red = "\033[31;1m"
     nocolor = "\033[0m"
-        
+
     def __init__(self):
         self.use_color = sys.stdout.isatty()
 
@@ -292,12 +292,12 @@ class TextView(object):
             TIMED_OUT = (self.red, "TIME")
         )[str]
         buf = ''
-        if error:
-            buf += error + '\n'
         if self.use_color:
             buf += short[0] + short[1] + " " + name + self.nocolor
         else:
             buf += short[1] + " " + name
+        if error:
+            buf += '\n' + error
         return buf
 
     def close(self):
@@ -319,14 +319,14 @@ class TermView(TextView):
     def close(self):
         self.write_pipe.send(('EXIT',None))
         self.thread.join()
-        
+
     def run(self):
         while True:
             args, kwargs = self.read_pipe.recv()
             if args == 'EXIT':
                 break
             self.thread_tell(*args, **kwargs)
-        
+
     def thread_tell(self, event, name, **kwargs):
         if event == 'STARTED':
             self.running_list += [name]
@@ -356,7 +356,7 @@ class TermView(TextView):
         if len(self.running_list) > 1:
             ret += ", ..."
         return ret
-            
+
     def show(self, line):
         self.clear_status()
         self.buffer += line + "\n"
@@ -366,7 +366,7 @@ class TermView(TextView):
         sys.stdout.write(self.buffer)
         self.buffer = ''
         sys.stdout.flush()
-        
+
 class Locked(object):
     def __init__(self, value=None):
         self.value = value
@@ -378,7 +378,7 @@ class Locked(object):
 
     def __exit__(self, e, x, c):
         self.lock.release()
-            
+
 class TestProcess(object):
     def __init__(self, runner, id, test, dir, run_dir):
         self.runner = runner
@@ -418,7 +418,8 @@ class TestProcess(object):
             except TimeoutException:
                 write_pipe.send(TestRunner.TIMED_OUT)
             except:
-                sys.stderr.write(traceback.format_exc() + '\n')
+                sys.stdout.write(traceback.format_exc() + '\n')
+                sys.stderr.write(str(sys.exc_info()[1]) + '\n')
                 write_pipe.send(TestRunner.FAILED)
             else:
                 write_pipe.send(TestRunner.SUCCESS)
@@ -439,10 +440,10 @@ class TestProcess(object):
             lines = f.read().split('\n')[-10:]
         if len(lines) < 10:
             with open(join(self.dir, "stdout")) as f:
-                lines = f.read().split('\n')[-len(lines):] + lines 
+                lines = f.read().split('\n')[-len(lines):] + lines
         return '\n'.join(lines)
-            
-            
+
+
     def supervise(self):
         read_pipe, write_pipe = multiprocessing.Pipe(False)
         self.process = multiprocessing.Process(target=self.run, args=[write_pipe],
@@ -471,7 +472,7 @@ class TestProcess(object):
                     with open(join(self.dir, "fail_message"), 'a') as file:
                         file.write('Failed')
             self.runner.tell(status, self.id, self)
-                
+
     def join(self):
         self.supervisor.join()
 
@@ -481,7 +482,7 @@ class TestProcess(object):
 
 class TimeoutException(Exception):
     pass
-        
+
 class Timeout(object):
     def __init__(self, seconds):
         self.timeout = seconds
@@ -496,7 +497,7 @@ class Timeout(object):
     @staticmethod
     def alarm(*ignored):
         raise TimeoutException()
-        
+
 class TestFilter(object):
     INCLUDE = 'INCLUDE'
     EXCLUDE = 'EXCLUDE'
@@ -545,7 +546,7 @@ class TestFilter(object):
             if create:
                 self.tree[name] = subfilter
             return subfilter
-        
+
     def check_use(self, path=[]):
         if not self.was_matched:
             raise Exception('No such test %s' % '.'.join(path))
@@ -563,7 +564,7 @@ class TestFilter(object):
 class PredicateFilter(object):
     def __init__(self, predicate):
         self.predicate = predicate
-    
+
     def all_same(self):
         return False
 
@@ -604,11 +605,11 @@ class Test(object):
 class SimpleTest(Test):
     def __init__(self, run, **kwargs):
         Test.__init__(self, **kwargs)
-        self._run = run 
+        self._run = run
 
     def run(self):
         self._run()
-        
+
 class TestTree(Test):
     def __init__(self, tests={}):
         self.tests = dict(tests)
@@ -620,7 +621,7 @@ class TestTree(Test):
             else:
                 return TestTree()
         trimmed = TestTree()
-        for name, test in self.tests.iteritems(): 
+        for name, test in self.tests.iteritems():
             subfilter = filter.zoom(name)
             trimmed[name] = test.filter(subfilter)
         return trimmed
@@ -640,7 +641,7 @@ class TestTree(Test):
                 pass
         else:
             self.tests[name] = test
-                
+
     def __iter__(self):
         for name in sorted(self.tests.keys()):
             for subname, test in self.tests[name]:
@@ -652,8 +653,8 @@ class TestTree(Test):
     def requirements(self):
         for test in self.tests.values():
             for req in test.requirements():
-                yield req        
-                    
+                yield req
+
     def configure(self, conf):
         return TestTree((
             (name, test.configure(conf))
@@ -726,7 +727,7 @@ class OldTest(Test):
 non_text_bytes = \
   range(0x00, 0x09+1) + [0x0B, 0x0C] + range(0x0F, 0x1F+1) + \
   [0xC0, 0xC1] + range(0xF5, 0xFF+1)
-                        
+
 def guess_is_text_file(name):
     with file(name, 'rb') as f:
         data = f.read(100)
@@ -734,4 +735,4 @@ def guess_is_text_file(name):
         if ord(byte) in non_text_bytes:
             return False
     return True
-            
+
