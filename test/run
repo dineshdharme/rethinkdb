@@ -12,25 +12,8 @@ from retest.framework import run, Test, TestTree, SimpleTest, group_from_file
 from retest.unit import AllUnitTests
 from retest.shelltest import ShellCommandTest
 
-# Dummy tests to test the test runner
-def pass_():
-    pass
-
-def fail():
-    raise Exception("failed")
-
-def wait(n):
-    return lambda: time.sleep(n)
-
 # Initialise the list of tests with the dumy tests and the unit tests
 tests = TestTree({
-    'dummy': TestTree({
-        'pass': SimpleTest(pass_),
-        'fail': SimpleTest(fail),
-        'timeout': SimpleTest(wait(2), timeout=1),
-        'notimeout': SimpleTest(wait(2)),
-        'print': SimpleTest(lambda: sys.stdout.write('hello\n'))
-    }),
     'unit': AllUnitTests()
 })
 
@@ -56,8 +39,10 @@ def load_tests():
             execfile(full_path, {"__builtins__": __builtins__, "generate_test": generate_test(tree)})
             tests[base_name] = tree
 
+# Test groups
 groups = {}
 
+# Load the test groups from full_test/*.group
 def load_groups():
     for (dirpath, __, filenames) in os.walk(join(dirname(__file__), "full_test")):
         filenames = [f for f in filenames if f.split('.')[-1] == 'group']
