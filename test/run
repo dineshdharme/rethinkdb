@@ -8,7 +8,7 @@ import time
 # sys.path.insert(0, abspath(join(dirname(__file__), pardir, "build", "packages", "python")))
 sys.path.insert(0, abspath(join(dirname(__file__), pardir, "lib")))
 
-from retest.framework import run, Test, TestTree, SimpleTest
+from retest.framework import run, Test, TestTree, SimpleTest, group_from_file
 from retest.unit import AllUnitTests
 from retest.shelltest import ShellCommandTest
 
@@ -55,7 +55,18 @@ def load_tests():
             full_path = os.path.join(dirpath, filename)
             execfile(full_path, {"__builtins__": __builtins__, "generate_test": generate_test(tree)})
             tests[base_name] = tree
-            
+
+groups = {}
+
+def load_groups():
+    for (dirpath, __, filenames) in os.walk(join(dirname(__file__), "full_test")):
+        filenames = [f for f in filenames if f.split('.')[-1] == 'group']
+        for filename in filenames:
+            base_name = filename.split('.')[0]
+            full_path = os.path.join(dirpath, filename)
+            groups[base_name] = group_from_file(full_path)
+
 if __name__ == '__main__':
     load_tests()
-    run(tests, sys.argv[1:])
+    load_groups()
+    run(tests, groups, sys.argv[1:])
