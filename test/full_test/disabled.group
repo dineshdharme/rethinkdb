@@ -64,5 +64,4 @@ split_workloads.transfer-multi-serial-mix
 split_workloads.transfer-multi-serial-mix-2
 split_workloads.transfer-serial-mix
 split_workloads.transfer-stress
-static_cluster.python
 static_cluster.rget
