@@ -395,7 +395,7 @@ class ClusterAccess(object):
         self.do_query("POST", "/ajax/semilattice/rdb_namespaces/%s/ack_expectations" % (table.uuid), ae_dict)
         self.update_cluster_data(10)
 
-    def add_table(self, name = None, primary = None, affinities = { }, ack_expectations = { }, primary_key = None, database = None, check = False):
+    def add_table(self, name = None, primary = None, affinities = { }, ack_expectations = { }, primary_key = None, database = "test", check = False):
         if name is None:
             name = str(random.randint(0, 1000000))
         if primary is not None:
@@ -408,10 +408,7 @@ class ClusterAccess(object):
         ack_dict = { }
         for datacenter, count in ack_expectations.iteritems():
             ack_dict[self.find_datacenter(datacenter).uuid] = { 'expectation': count }
-        if database is None:
-            database_uuid = None
-        else:
-            database_uuid = self.find_database(database).uuid
+        database_uuid = self.find_database(database).uuid
         data_to_post = {
             "name": name,
             "primary_uuid": primary,
@@ -422,10 +419,8 @@ class ClusterAccess(object):
 
         if primary_key is None:
             primary_key = "id"
-        # Right now `primary_key` is required to be `"id"` because the
-        # server doesn't support setting the primary key. <---- TODO[ATN] is that correct?
-        # data_to_post["primary_key"] = primary_key
-        assert primary_key == "id"
+
+        data_to_post["primary_key"] = primary_key
 
         info = self.do_query("POST", "/ajax/semilattice/rdb_namespaces/new", data_to_post)
         assert len(info) == 1
