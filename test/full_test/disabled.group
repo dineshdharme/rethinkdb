@@ -3,10 +3,6 @@ bonus_tests.heavy-backfilling
 bonus_tests.reconfigure-under-load-1
 bonus_tests.reconfigure-under-load-2
 bonus_tests.reconfigure-under-load-3
-continuous.stress
-ql.py-connect
-regression.649
-regression.659
 regression.676
 regression.852
 split_workloads.add-secondary-many-keys
