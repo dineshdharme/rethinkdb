@@ -3,7 +3,6 @@ bonus_tests.heavy-backfilling
 bonus_tests.reconfigure-under-load-1
 bonus_tests.reconfigure-under-load-2
 bonus_tests.reconfigure-under-load-3
-continuous.serial
 continuous.stress
 ql.py-connect
 regression.649

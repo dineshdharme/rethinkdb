@@ -30,8 +30,8 @@ class MemcacheRdbShim(object):
         error = response.get('first_error')
         if error:
             raise Exception(error)
-        
-        return response['inserted'] | response['replaced']
+
+        return response['inserted'] | response['replaced'] | response['unchanged']
 
     def delete(self, key):
         response = self.table.get(key).delete().run(self.conn)
@@ -39,9 +39,9 @@ class MemcacheRdbShim(object):
         error = response.get('first_error')
         if error:
             raise Exception(error)
-        
+
         return response['deleted']
 
-        
+
 def option_parser_for_memcache():
     return rdb_workload_common.option_parser_for_connect()
