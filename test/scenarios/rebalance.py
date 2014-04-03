@@ -34,8 +34,8 @@ op["num-nodes"] = IntFlag("--num-nodes", 3)
 op["sequence"] = ValueFlag("--sequence", converter = Sequence.from_string, default = Sequence(2, [(1, 1)]))
 opts = op.parse(sys.argv)
 
-letters = "abcdefghijklmnopqrstuvwxyz"
-candidate_shard_boundaries = set(letters).union([x + "g" for x in letters]).union([x + "m" for x in letters]).union([x + "s" for x in letters])
+alphanum = "0123456789abcdefghijklmnopqrstuvwxyz"
+candidate_shard_boundaries = set(alphanum).union([x + "9" for x in alphanum]).union([x + "i" for x in alphanum]).union([x + "r" for x in alphanum])
 
 with driver.Metacluster() as metacluster:
     cluster = driver.Cluster(metacluster)
