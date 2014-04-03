@@ -23,9 +23,14 @@ def insert_many(host="localhost", port=28015, database="test", table=None, count
     def gen(i):
         return { 'val': "X" * (i % 100) }
 
+    if isinstance(table, "".__class__):
+        table = r.db(database).table(table)
+
     for start in range(0, count, batch_size):
         end = min(start + batch_size, count)
-        res = r.db(database).table(table).insert([gen(i) for i in range(start, end)]).run(conn)
+        res = table.insert([gen(i) for i in range(start, end)]).run(conn)
         if res.get('first_error'):
             raise Exception("Insert failed: " + res.get('first_error'))
         assert res['inserted'] == end - start
+
+    print "inserted", count, "documents into", table
