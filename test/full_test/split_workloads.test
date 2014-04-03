@@ -8,10 +8,10 @@ two_phase_workloads = [
     ]
 
 n_phase_workloads = [
-    ("$RETHINKDB/test/rdb_workloads/insert_many.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME --count=10000",
+    ("$RETHINKDB/test/rdb_workloads/insert_many.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME --count 10000",
      "true",
      "true",
-     'stress'),
+     'insert_many'),
     ("$RETHINKDB/test/memcached_workloads/serial_mix.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME --save values",
      "$RETHINKDB/test/memcached_workloads/serial_mix.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME --load values --save values",
      "$RETHINKDB/test/memcached_workloads/serial_mix.py --address $HOST:$PORT --table $DB_NAME.$TABLE_NAME --load values",

@@ -1,10 +1,11 @@
+#!/usr/bin/env python
 import sys, socket, random, time, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, 'common')))
 import rdb_workload_common
 from vcoptparse import *
 
 op = rdb_workload_common.option_parser_for_connect()
-op["count"] = IntFlag("--num-appends", 10000)
+op["count"] = IntFlag("--count", 10000)
 opts = op.parse(sys.argv)
 
 if __name__ == '__main__':
