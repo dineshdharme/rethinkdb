@@ -10,4 +10,4 @@ opts = op.parse(sys.argv)
 
 if __name__ == '__main__':
     with rdb_workload_common.make_table_and_connection(opts) as (table, conn):
-        rdb_workload_common.insert_many(table=table, count=opts['count'])
+        rdb_workload_common.insert_many(conn=conn, table=table, count=opts['count'])

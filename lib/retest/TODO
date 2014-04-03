@@ -1,3 +1,13 @@
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 551, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 504, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/ssd1/atnnn/code/rethinkdb/lib/retest/framework.py", line 351, in run
+    args, kwargs = self.read_pipe.recv()
+UnpicklingError: invalid load key, 'B'.
+
+
 $ ./stress  --help
 Usage:
         ./stress [OPTIONS]
