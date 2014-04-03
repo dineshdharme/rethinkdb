@@ -295,7 +295,8 @@ class ClusterAccess(object):
 
     def add_database(self, name = None):
         if name is None:
-            name = str(random.randint(0, 1000000))
+            name = "test_" + str(random.randint(0, 1000000))
+        assert '-' not in name
         info = self.do_query("POST", "/ajax/semilattice/databases/new", {
             "name": name
             })

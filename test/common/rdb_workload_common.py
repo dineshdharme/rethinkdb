@@ -16,7 +16,7 @@ def make_table_and_connection(opts):
         (db, table) = opts['table'].split('.')
         yield (r.db(db).table(table), conn)
 
-def insert_many(host="localhost", port=28015, db="test", table=None, count=10000):
+def insert_many(host="localhost", port=28015, database="test", table=None, count=10000):
     conn = r.connect(host, port)
     batch_size = 1000
 
@@ -25,5 +25,7 @@ def insert_many(host="localhost", port=28015, db="test", table=None, count=10000
 
     for start in range(0, count, batch_size):
         end = min(start + batch_size, count)
-        res = r.db(db).table(table).insert([gen(i) for i in range(start, end)]).run(conn)
+        res = r.db(database).table(table).insert([gen(i) for i in range(start, end)]).run(conn)
+        if res.get('first_error'):
+            raise Exception("Insert failed: " + res.get('first_error'))
         assert res['inserted'] == end - start

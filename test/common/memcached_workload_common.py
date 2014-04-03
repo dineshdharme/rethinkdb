@@ -1,5 +1,5 @@
 # This is a (hopefully temporary) shim that uses the rdb protocol to
-# implement the memcache API
+# implement part of the memcache API
 
 import contextlib
 import rdb_workload_common
