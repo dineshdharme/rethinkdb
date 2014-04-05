@@ -3,8 +3,6 @@
 #bonus_tests.reconfigure-under-load-1
 #bonus_tests.reconfigure-under-load-2
 #bonus_tests.reconfigure-under-load-3
-split_workloads.rebalance-2-multi-serial-mix
-split_workloads.restart-many-keys
+#split_workloads.rebalance-2-multi-serial-mix
 split_workloads.restart-multi-serial-mix
 split_workloads.restart-multi-serial-mix-2
-split_workloads.restart-serial-mix

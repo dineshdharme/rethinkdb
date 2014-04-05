@@ -8,6 +8,7 @@ import socket
 import random
 from httplib import HTTPConnection
 import urllib   # for `quote()` and `unquote()`
+import utils
 
 """ The `http_admin.py` module is a Python wrapper around the HTTP interface to
 RethinkDB. It is not responsible for starting and stopping RethinkDB processes.
@@ -111,6 +112,11 @@ class Table(object):
         self.primary_pinnings = json_data[u"primary_pinnings"]
         self.secondary_pinnings = json_data[u"secondary_pinnings"]
         self.database_uuid = None if json_data[u"database"] is None else validate_uuid(json_data[u"database"])
+
+    def __cmp__(self, other):
+        if type(self) != type(other):
+            return cmp(type(self), type(other))
+        return cmp(self.to_json(), other.to_json())
 
     def check(self, data):
         return data[u"name"] == self.name and \
@@ -320,8 +326,7 @@ class ClusterAccess(object):
                 else:
                     raise ValueError("Multiple %ss named %r" % (type_str, what))
         elif isinstance(what, type_class):
-            # TODO: compare the objects recursively
-            assert search_space[what.uuid] is what
+            assert search_space[what.uuid] == what
             return what
         else:
             raise TypeError("Can't interpret %r as a %s" % (what, type_str))
