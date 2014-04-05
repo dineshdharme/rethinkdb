@@ -320,6 +320,7 @@ class ClusterAccess(object):
                 else:
                     raise ValueError("Multiple %ss named %r" % (type_str, what))
         elif isinstance(what, type_class):
+            # TODO: compare the objects recursively
             assert search_space[what.uuid] is what
             return what
         else:

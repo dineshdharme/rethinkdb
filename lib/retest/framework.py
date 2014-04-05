@@ -37,7 +37,7 @@ parser.add_argument('-a', '--abort-fast', action='store_true', dest='abort_fast'
                     help='Abort the tests when a test fails (Default: no)')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Be more verbose when running tests. Also works with -l and -L (Default: no)')
-parser.add_argument('-t', '--timeout', type=int, default=600,
+parser.add_argument('-t', '--timeout', type=int, default=1200,
                     help='Timeout in seconds for each test (Default: 600)')
 parser.add_argument('-L', '--load', nargs='?', const=True, default=False, metavar='DIR',
                     help='Load logs from a previous test (Default: no)')

@@ -34,11 +34,10 @@ with driver.Metacluster() as metacluster:
     process2 = driver.Process(cluster, files,
         executable_path = executable_path, command_prefix = command_prefix, extra_options = serve_options)
     process2.wait_until_started_up()
-    # NOTE (daniel): I don't know why but for some weird reason wait_until_blueprint_satisfied
-    # shuts down the server. Really no idea why... As a quick and dirty work-around, let's just
-    # sleep 5 seconds
-    time.sleep(5)
-    # http.wait_until_blueprint_satisfied(ns)
-    workload_runner.run("UNUSED", opts["workload2"], workload_ports, opts["timeout"])
+    http2 = http_admin.ClusterAccess([("localhost", process2.http_port)])
+    http2.wait_until_blueprint_satisfied(ns)
+    cluster.check()
+    workload_ports2 = scenario_common.get_workload_ports(opts, ns, [process2])
+    workload_runner.run("UNUSED", opts["workload2"], workload_ports2, opts["timeout"])
     print "Shutting down..."
     cluster.check_and_stop()
