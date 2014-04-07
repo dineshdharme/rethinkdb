@@ -1,3 +1,6 @@
+* test cache size
+* use a fixed cache size for tests?
+
 Traceback (most recent call last):
   File "/usr/lib/python2.7/threading.py", line 551, in __bootstrap_inner
     self.run()
